@@ -254,6 +254,17 @@ export function useStore() {
     setData(DEFAULT_DATA);
   }, []);
 
+  // Update a practice definition
+  const updatePractice = useCallback((practiceId, field, value) => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (newData.practices[practiceId]) {
+        newData.practices[practiceId][field] = value;
+      }
+      return newData;
+    });
+  }, []);
+
   return {
     data,
     currentMonth: data.currentMonth,
@@ -271,6 +282,7 @@ export function useStore() {
     exportData,
     importData,
     resetData,
+    updatePractice,
   };
 }
 

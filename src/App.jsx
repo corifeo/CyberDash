@@ -1,8 +1,9 @@
 import { useState, useRef, useMemo } from 'react';
 import {
   Shield, Plus, Trash2, Download, Upload,
-  Calendar, Users, TrendingUp, TrendingDown, Minus,
-  ChevronRight, RotateCcw, Info, ArrowUpRight, ArrowDownRight
+  Calendar, Users, ChevronRight, RotateCcw,
+  Info, ArrowUpRight, ArrowDownRight, Minus,
+  Settings, X
 } from 'lucide-react';
 import { useStore } from './store/useStore';
 import {
@@ -71,7 +72,7 @@ const trendConfig = {
   },
 };
 
-// Get next month suggestion based on current month or system date
+// Get next month suggestion
 function getNextMonthSuggestion(currentMonth) {
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -227,11 +228,85 @@ function Legend() {
   );
 }
 
+// Settings Modal Component
+function SettingsModal({ practices, onUpdatePractice, onClose }) {
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-semibold">Settings</h2>
+          <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-sm font-medium text-slate-300 mb-3">Practice Names</h3>
+            <p className="text-xs text-slate-500 mb-4">Customize the display names for security practices</p>
+            <div className="space-y-2">
+              {Object.entries(practices).map(([id, practice]) => (
+                <div key={id} className="flex items-center gap-3">
+                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${practice.type === 'boolean' ? 'bg-cyan-500' : 'bg-purple-500'}`} />
+                  <input
+                    type="text"
+                    value={practice.name}
+                    onChange={(e) => onUpdatePractice(id, 'name', e.target.value)}
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm focus:border-cyber-500 outline-none"
+                  />
+                  <span className="text-xs text-slate-500 w-16">
+                    {practice.type === 'boolean' ? 'Yes/No' : 'Level 1-4'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-700">
+            <h3 className="text-sm font-medium text-slate-300 mb-3">Practice Types</h3>
+            <div className="flex items-center gap-4 text-xs text-slate-400">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                Boolean (Yes/No)
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-purple-500" />
+                Maturity (1-4 scale)
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-slate-700">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-cyber-500 hover:bg-cyber-600 rounded text-sm font-medium"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Stat Display Component - Big number with label
+function StatNumber({ value, label, size = 'lg' }) {
+  const sizeClasses = size === 'xl' ? 'text-4xl' : size === 'lg' ? 'text-3xl' : 'text-2xl';
+  return (
+    <div className="text-center">
+      <div className={`${sizeClasses} font-bold text-white leading-none`}>{value}</div>
+      <div className="text-xs text-white/60 mt-1 uppercase tracking-wide">{label}</div>
+    </div>
+  );
+}
+
 export default function App() {
   const store = useStore();
   const [selectedBU, setSelectedBU] = useState(null);
   const [selectedSquad, setSelectedSquad] = useState(null);
   const [showNewMonth, setShowNewMonth] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -294,62 +369,68 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-      {/* Header */}
+      {/* Header - Fixed alignment with flex sections */}
       <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-slate-800">
         <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            {/* Logo & Title - Clickable to go home */}
-            <button onClick={goHome} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+          <div className="flex items-center gap-4">
+            {/* Left section - Logo (fixed width) */}
+            <button onClick={goHome} className="flex items-center gap-3 hover:opacity-80 transition-opacity flex-shrink-0">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyber-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-cyber-500/20">
                 <Shield className="w-6 h-6" />
               </div>
-              <div className="text-left">
+              <div className="text-left hidden sm:block">
                 <h1 className="font-bold text-xl">CyberDash</h1>
                 <p className="text-xs text-slate-400">{monthData.reportingPeriod}</p>
               </div>
             </button>
 
-            {/* View/Edit Toggle Switch */}
-            <ToggleSwitch
-              checked={editMode}
-              onChange={setEditMode}
-              labelLeft="View"
-              labelRight="Edit"
-            />
-
-            {/* Month Selector */}
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-slate-400" />
-              <select
-                value={store.currentMonth}
-                onChange={(e) => store.setCurrentMonth(e.target.value)}
-                className="bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm"
-              >
-                {store.months.map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-              {editMode && (
-                <button
-                  onClick={openNewMonthModal}
-                  className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded"
-                  title="New Month"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              )}
+            {/* Center section - Toggle (grows to fill space, centered) */}
+            <div className="flex-1 flex justify-center">
+              <ToggleSwitch
+                checked={editMode}
+                onChange={setEditMode}
+                labelLeft="View"
+                labelRight="Edit"
+              />
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-2">
+            {/* Right section - Actions (fixed width) */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Month Selector */}
+              <div className="flex items-center gap-1">
+                <Calendar className="w-4 h-4 text-slate-400 hidden sm:block" />
+                <select
+                  value={store.currentMonth}
+                  onChange={(e) => store.setCurrentMonth(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm w-24"
+                >
+                  {store.months.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                {editMode && (
+                  <button
+                    onClick={openNewMonthModal}
+                    className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded"
+                    title="New Month"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Divider */}
+              <div className="w-px h-6 bg-slate-700 mx-1" />
+
+              {/* Action buttons */}
               <button
                 onClick={store.exportData}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-sm"
+                className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded"
                 title="Export"
               >
                 <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Export</span>
               </button>
+
               {editMode && (
                 <>
                   <input
@@ -361,11 +442,17 @@ export default function App() {
                   />
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded text-sm"
+                    className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded"
                     title="Import"
                   >
                     <Upload className="w-4 h-4" />
-                    <span className="hidden sm:inline">Import</span>
+                  </button>
+                  <button
+                    onClick={() => setShowSettings(true)}
+                    className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded"
+                    title="Settings"
+                  >
+                    <Settings className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => {
@@ -382,6 +469,15 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <SettingsModal
+          practices={store.practices}
+          onUpdatePractice={store.updatePractice}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
 
       {/* New Month Modal */}
       {showNewMonth && (
@@ -467,7 +563,6 @@ export default function App() {
                   />
                 )}
               </h2>
-              {/* Manual RAG Status */}
               {editMode ? (
                 <EditableSelect
                   value={currentSquad.status || 'red'}
@@ -661,22 +756,34 @@ export default function App() {
                   <Tooltip key={squad.id} squad={squad} practices={store.practices}>
                     <div
                       onClick={() => setSelectedSquad(squad.id)}
-                      className={`${statusBg[status]} ${statusBgHover[status]} rounded-xl p-4 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
+                      className={`${statusBg[status]} ${statusBgHover[status]} rounded-xl p-5 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="font-semibold text-white">{squad.name}</h3>
+                      {/* Card Header */}
+                      <div className="flex items-start justify-between mb-4">
+                        <h3 className="font-bold text-white text-lg leading-tight">{squad.name}</h3>
                         <div className={`p-1.5 rounded-full ${trend.bgColor}`}>
                           <trend.Icon className={`w-4 h-4 ${trend.color}`} />
                         </div>
                       </div>
-                      <p className="text-white/80 text-sm mb-3 font-mono">{adopted}/{total} practices</p>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-white/70">{trend.label}</span>
+
+                      {/* Big Stats */}
+                      <div className="flex items-end justify-between mb-4">
+                        <div>
+                          <div className="text-4xl font-black text-white leading-none">{adopted}</div>
+                          <div className="text-white/50 text-xs mt-1">of {total} practices</div>
+                        </div>
                         {squad.monthlyUpdate.keyMetric.value && (
-                          <span className="text-white font-medium">
-                            {squad.monthlyUpdate.keyMetric.value}
-                          </span>
+                          <div className="text-right">
+                            <div className="text-2xl font-bold text-white/90">{squad.monthlyUpdate.keyMetric.value}</div>
+                            <div className="text-white/50 text-xs">{squad.monthlyUpdate.keyMetric.label}</div>
+                          </div>
                         )}
+                      </div>
+
+                      {/* Footer */}
+                      <div className="flex items-center justify-between pt-3 border-t border-white/20">
+                        <span className="text-white/70 text-sm">{trend.label}</span>
+                        <span className="text-white/50 text-xs">{statusLabels[status]}</span>
                       </div>
                     </div>
                   </Tooltip>
@@ -688,7 +795,6 @@ export default function App() {
               <p className="text-center text-slate-500 py-8">No squads yet. {editMode && 'Add one to get started.'}</p>
             )}
 
-            {/* Legend */}
             <Legend />
 
             {editMode && (
@@ -736,40 +842,53 @@ export default function App() {
                   return sum + getAdoptedCount(s.practices, store.practices).total;
                 }, 0);
 
+                const greenCount = squadStatuses.filter((s) => s === 'green').length;
+                const amberCount = squadStatuses.filter((s) => s === 'amber').length;
+                const redCount = squadStatuses.filter((s) => s === 'red').length;
+
                 return (
                   <div
                     key={bu.id}
                     onClick={() => setSelectedBU(bu.id)}
-                    className={`${statusBg[dominantStatus]} ${statusBgHover[dominantStatus]} rounded-xl p-5 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
+                    className={`${statusBg[dominantStatus]} ${statusBgHover[dominantStatus]} rounded-xl p-6 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <h3 className="text-xl font-semibold text-white">{bu.name}</h3>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-white/80 mb-3">
-                      <div className="flex items-center gap-1.5">
-                        <Users className="w-4 h-4" />
-                        {bu.squads.length} squads
+                    {/* Card Header */}
+                    <h3 className="text-xl font-bold text-white mb-4">{bu.name}</h3>
+
+                    {/* Big Stats Row */}
+                    <div className="flex items-end justify-between mb-5">
+                      <div>
+                        <div className="text-5xl font-black text-white leading-none">{bu.squads.length}</div>
+                        <div className="text-white/50 text-sm mt-1">Squads</div>
                       </div>
-                      <span className="font-mono">{totalAdopted}/{totalPractices} practices</span>
+                      <div className="text-right">
+                        <div className="text-3xl font-bold text-white/90">{totalAdopted}<span className="text-lg text-white/50">/{totalPractices}</span></div>
+                        <div className="text-white/50 text-sm">Practices</div>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      {squadStatuses.filter((s) => s === 'green').length > 0 && (
-                        <span className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded text-xs">
-                          <span className="w-2 h-2 rounded-full bg-emerald-300" />
-                          {squadStatuses.filter((s) => s === 'green').length}
-                        </span>
+
+                    {/* Status Distribution */}
+                    <div className="flex gap-4 pt-4 border-t border-white/20">
+                      {greenCount > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-emerald-300" />
+                          <span className="text-white font-bold">{greenCount}</span>
+                          <span className="text-white/50 text-xs">strong</span>
+                        </div>
                       )}
-                      {squadStatuses.filter((s) => s === 'amber').length > 0 && (
-                        <span className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded text-xs">
-                          <span className="w-2 h-2 rounded-full bg-amber-300" />
-                          {squadStatuses.filter((s) => s === 'amber').length}
-                        </span>
+                      {amberCount > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-amber-300" />
+                          <span className="text-white font-bold">{amberCount}</span>
+                          <span className="text-white/50 text-xs">developing</span>
+                        </div>
                       )}
-                      {squadStatuses.filter((s) => s === 'red').length > 0 && (
-                        <span className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded text-xs">
-                          <span className="w-2 h-2 rounded-full bg-red-300" />
-                          {squadStatuses.filter((s) => s === 'red').length}
-                        </span>
+                      {redCount > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-red-300" />
+                          <span className="text-white font-bold">{redCount}</span>
+                          <span className="text-white/50 text-xs">early</span>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -781,7 +900,6 @@ export default function App() {
               <p className="text-center text-slate-500 py-8">No business units yet. {editMode && 'Add one to get started.'}</p>
             )}
 
-            {/* Legend */}
             <Legend />
           </div>
         )}
