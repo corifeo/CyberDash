@@ -98,21 +98,18 @@ export function useStore() {
     setData((prev) => ({ ...prev, currentMonth: monthKey }));
   }, []);
 
-  // Create a new month (copies structure from current month)
+  // Create a new month (copies full data from current month, only clears update text)
   const createNewMonth = useCallback((monthKey, label) => {
     setData((prev) => {
       const currentData = prev.months[prev.currentMonth];
-      // Deep copy and clear monthly updates
+      // Deep copy - keep all practice data, just clear monthly update summaries
       const newMonthData = JSON.parse(JSON.stringify(currentData));
       newMonthData.reportingPeriod = label;
       newMonthData.businessUnits.forEach((bu) => {
         bu.squads.forEach((squad) => {
-          squad.monthlyUpdate = {
-            summary: "",
-            nextPeriod: "",
-            trend: "stable",
-            keyMetric: { ...squad.monthlyUpdate.keyMetric, value: "" },
-          };
+          // Keep practices, trend, and metric structure - just clear text summaries
+          squad.monthlyUpdate.summary = "";
+          squad.monthlyUpdate.nextPeriod = "";
         });
       });
       return {
