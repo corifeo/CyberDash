@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from 'react';
 import {
   Shield, Plus, Trash2, Download, Upload,
   Calendar, Users, TrendingUp, TrendingDown, Minus,
-  ChevronRight, RotateCcw, Eye, Pencil
+  ChevronRight, RotateCcw, Info, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 import { useStore } from './store/useStore';
 import {
@@ -13,32 +13,28 @@ import {
   EditableMaturity,
 } from './components/Editable';
 
-// Calculate RAG status and score
-function getStatusAndScore(practices, definitions) {
-  let score = 0, max = 0;
+// Count adopted practices
+function getAdoptedCount(practices, definitions) {
+  let adopted = 0;
+  let total = 0;
   Object.entries(practices).forEach(([key, value]) => {
     const def = definitions[key];
     if (!def) return;
+    total++;
     if (def.type === 'boolean') {
-      score += value ? 1 : 0;
-      max += 1;
+      if (value) adopted++;
     } else {
-      score += value / 4;
-      max += 1;
+      if (value >= 3) adopted++;
     }
   });
-  const pct = max > 0 ? (score / max) * 100 : 0;
-  let status = 'red';
-  if (pct >= 75) status = 'green';
-  else if (pct >= 40) status = 'amber';
-  return { status, score: Math.round(pct) };
+  return { adopted, total };
 }
 
 // RAG background colors for cards
 const statusBg = {
-  green: 'bg-emerald-600/90',
-  amber: 'bg-amber-600/90',
-  red: 'bg-red-600/90',
+  green: 'bg-emerald-500',
+  amber: 'bg-amber-500',
+  red: 'bg-red-500',
 };
 
 const statusBgHover = {
@@ -47,39 +43,49 @@ const statusBgHover = {
   red: 'hover:bg-red-600',
 };
 
-const trendIcons = {
-  improving: TrendingUp,
-  stable: Minus,
-  declining: TrendingDown,
+const statusLabels = {
+  green: 'Strong',
+  amber: 'Developing',
+  red: 'Early Stage',
 };
 
-const trendLabels = {
-  improving: 'Improving',
-  stable: 'Stable',
-  declining: 'Needs Attention',
+// Better trend config with colors and icons
+const trendConfig = {
+  improving: {
+    label: 'Improving',
+    color: 'text-emerald-400',
+    bgColor: 'bg-emerald-500/20',
+    Icon: ArrowUpRight,
+  },
+  stable: {
+    label: 'Stable',
+    color: 'text-slate-400',
+    bgColor: 'bg-slate-500/20',
+    Icon: Minus,
+  },
+  declining: {
+    label: 'Needs Attention',
+    color: 'text-amber-400',
+    bgColor: 'bg-amber-500/20',
+    Icon: ArrowDownRight,
+  },
 };
 
 // Get next month suggestion based on current month or system date
 function getNextMonthSuggestion(currentMonth) {
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentMonthNum = now.getMonth() + 1; // 1-12
+  const currentMonthNum = now.getMonth() + 1;
 
-  // Parse current month key (e.g., "2025-01")
   const [yearStr, monthStr] = currentMonth.split('-');
   const year = parseInt(yearStr);
   const month = parseInt(monthStr);
 
-  // If current data month is in the past or current, suggest current system month
-  // Otherwise suggest next month after data month
   let nextYear, nextMonth;
-
   if (year < currentYear || (year === currentYear && month < currentMonthNum)) {
-    // Data is old, suggest current month
     nextYear = currentYear;
     nextMonth = currentMonthNum;
   } else {
-    // Suggest next month after current data
     nextMonth = month + 1;
     nextYear = year;
     if (nextMonth > 12) {
@@ -100,13 +106,8 @@ function getNextMonthSuggestion(currentMonth) {
 // Tooltip component for hover metadata
 function Tooltip({ squad, practices, children }) {
   const [show, setShow] = useState(false);
-  const { status, score } = getStatusAndScore(squad.practices, practices);
-
-  const adoptedCount = Object.entries(squad.practices).filter(([key, value]) => {
-    const def = practices[key];
-    if (!def) return false;
-    return def.type === 'boolean' ? value : value >= 3;
-  }).length;
+  const { adopted, total } = getAdoptedCount(squad.practices, practices);
+  const trend = trendConfig[squad.monthlyUpdate.trend];
 
   return (
     <div
@@ -116,30 +117,41 @@ function Tooltip({ squad, practices, children }) {
     >
       {children}
       {show && (
-        <div className="absolute z-50 left-0 right-0 top-full mt-2 p-4 bg-slate-900 border border-slate-600 rounded-lg shadow-xl text-sm">
+        <div className="absolute z-50 left-0 right-0 top-full mt-2 p-4 bg-slate-900/95 backdrop-blur border border-slate-600 rounded-lg shadow-2xl text-sm min-w-[280px]">
           <div className="space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-slate-400">Overall Score</span>
-              <span className="font-bold text-white">{score}%</span>
+              <span className="text-slate-400">Status</span>
+              <span className={`font-semibold ${squad.status === 'green' ? 'text-emerald-400' : squad.status === 'amber' ? 'text-amber-400' : 'text-red-400'}`}>
+                {statusLabels[squad.status || 'red']}
+              </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-slate-400">Practices Adopted</span>
-              <span className="text-white">{adoptedCount}/{Object.keys(practices).length}</span>
+              <span className="text-white font-mono">{adopted}/{total}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Trend</span>
+              <span className={`flex items-center gap-1 ${trend.color}`}>
+                <trend.Icon className="w-4 h-4" />
+                {trend.label}
+              </span>
             </div>
             {squad.monthlyUpdate.keyMetric.label && (
               <div className="flex justify-between items-center">
                 <span className="text-slate-400">{squad.monthlyUpdate.keyMetric.label}</span>
-                <span className="text-cyber-400">{squad.monthlyUpdate.keyMetric.value} / {squad.monthlyUpdate.keyMetric.target}</span>
+                <span className="text-cyber-400 font-medium">{squad.monthlyUpdate.keyMetric.value}</span>
               </div>
             )}
-            <div className="pt-2 border-t border-slate-700">
-              <p className="text-slate-400 text-xs mb-1">This Period:</p>
-              <p className="text-white text-xs">{squad.monthlyUpdate.summary || 'No update'}</p>
-            </div>
+            {squad.monthlyUpdate.summary && (
+              <div className="pt-2 border-t border-slate-700">
+                <p className="text-slate-400 text-xs mb-1">This Period:</p>
+                <p className="text-white text-xs leading-relaxed">{squad.monthlyUpdate.summary}</p>
+              </div>
+            )}
             {squad.monthlyUpdate.nextPeriod && (
-              <div>
+              <div className="pt-2 border-t border-slate-700">
                 <p className="text-slate-400 text-xs mb-1">Next Period:</p>
-                <p className="text-white text-xs">{squad.monthlyUpdate.nextPeriod}</p>
+                <p className="text-white text-xs leading-relaxed">{squad.monthlyUpdate.nextPeriod}</p>
               </div>
             )}
           </div>
@@ -149,15 +161,80 @@ function Tooltip({ squad, practices, children }) {
   );
 }
 
+// Toggle Switch Component
+function ToggleSwitch({ checked, onChange, labelLeft, labelRight }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`text-sm ${!checked ? 'text-white font-medium' : 'text-slate-400'}`}>{labelLeft}</span>
+      <button
+        onClick={() => onChange(!checked)}
+        className={`relative w-12 h-6 rounded-full transition-colors ${checked ? 'bg-cyber-500' : 'bg-slate-600'}`}
+      >
+        <span
+          className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${checked ? 'left-7' : 'left-1'}`}
+        />
+      </button>
+      <span className={`text-sm ${checked ? 'text-white font-medium' : 'text-slate-400'}`}>{labelRight}</span>
+    </div>
+  );
+}
+
+// Legend Component
+function Legend() {
+  return (
+    <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+      <div className="flex items-center gap-2 mb-3">
+        <Info className="w-4 h-4 text-slate-400" />
+        <span className="text-sm font-medium text-slate-300">Legend</span>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <p className="text-xs text-slate-400 mb-2">Status</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded bg-emerald-500" />
+              <span className="text-xs text-slate-300">Green - Strong</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded bg-amber-500" />
+              <span className="text-xs text-slate-300">Amber - Developing</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded bg-red-500" />
+              <span className="text-xs text-slate-300">Red - Early Stage</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p className="text-xs text-slate-400 mb-2">Trend</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs text-slate-300">Improving</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Minus className="w-4 h-4 text-slate-400" />
+              <span className="text-xs text-slate-300">Stable</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ArrowDownRight className="w-4 h-4 text-amber-400" />
+              <span className="text-xs text-slate-300">Needs Attention</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const store = useStore();
   const [selectedBU, setSelectedBU] = useState(null);
   const [selectedSquad, setSelectedSquad] = useState(null);
   const [showNewMonth, setShowNewMonth] = useState(false);
-  const [viewOnly, setViewOnly] = useState(true); // Default to view-only
+  const [editMode, setEditMode] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Auto-suggest next month
   const nextMonthSuggestion = useMemo(() => {
     return getNextMonthSuggestion(store.currentMonth);
   }, [store.currentMonth]);
@@ -183,6 +260,11 @@ export default function App() {
   const currentSquad = selectedSquad && currentBU
     ? currentBU.squads.find((s) => s.id === selectedSquad)
     : null;
+
+  const goHome = () => {
+    setSelectedBU(null);
+    setSelectedSquad(null);
+  };
 
   const openNewMonthModal = () => {
     setNewMonthKey(nextMonthSuggestion.key);
@@ -216,29 +298,24 @@ export default function App() {
       <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-slate-800">
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            {/* Logo & Title */}
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyber-500 to-cyan-500 flex items-center justify-center">
-                <Shield className="w-5 h-5" />
+            {/* Logo & Title - Clickable to go home */}
+            <button onClick={goHome} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyber-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-cyber-500/20">
+                <Shield className="w-6 h-6" />
               </div>
-              <div>
-                <h1 className="font-bold text-lg">CyberDash</h1>
+              <div className="text-left">
+                <h1 className="font-bold text-xl">CyberDash</h1>
                 <p className="text-xs text-slate-400">{monthData.reportingPeriod}</p>
               </div>
-            </div>
-
-            {/* View/Edit Toggle */}
-            <button
-              onClick={() => setViewOnly(!viewOnly)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                viewOnly
-                  ? 'bg-slate-700 text-slate-300'
-                  : 'bg-cyber-500 text-white'
-              }`}
-            >
-              {viewOnly ? <Eye className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
-              {viewOnly ? 'View Mode' : 'Edit Mode'}
             </button>
+
+            {/* View/Edit Toggle Switch */}
+            <ToggleSwitch
+              checked={editMode}
+              onChange={setEditMode}
+              labelLeft="View"
+              labelRight="Edit"
+            />
 
             {/* Month Selector */}
             <div className="flex items-center gap-2">
@@ -252,7 +329,7 @@ export default function App() {
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
-              {!viewOnly && (
+              {editMode && (
                 <button
                   onClick={openNewMonthModal}
                   className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded"
@@ -273,7 +350,7 @@ export default function App() {
                 <Download className="w-4 h-4" />
                 <span className="hidden sm:inline">Export</span>
               </button>
-              {!viewOnly && (
+              {editMode && (
                 <>
                   <input
                     ref={fileInputRef}
@@ -321,7 +398,6 @@ export default function App() {
                   type="text"
                   value={newMonthKey}
                   onChange={(e) => setNewMonthKey(e.target.value)}
-                  placeholder="2025-02"
                   className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2"
                 />
               </div>
@@ -331,7 +407,6 @@ export default function App() {
                   type="text"
                   value={newMonthLabel}
                   onChange={(e) => setNewMonthLabel(e.target.value)}
-                  placeholder="February 2025"
                   className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2"
                 />
               </div>
@@ -356,51 +431,73 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
-          <button onClick={() => { setSelectedBU(null); setSelectedSquad(null); }} className="hover:text-white">
+        {/* Breadcrumb - Larger */}
+        <nav className="flex items-center gap-3 text-lg mb-6">
+          <button onClick={goHome} className="text-slate-400 hover:text-white transition-colors">
             Overview
           </button>
           {currentBU && (
             <>
-              <ChevronRight className="w-4 h-4" />
-              <button onClick={() => setSelectedSquad(null)} className="hover:text-white">
+              <ChevronRight className="w-5 h-5 text-slate-600" />
+              <button
+                onClick={() => setSelectedSquad(null)}
+                className={`transition-colors ${currentSquad ? 'text-slate-400 hover:text-white' : 'text-white font-semibold'}`}
+              >
                 {currentBU.name}
               </button>
             </>
           )}
           {currentSquad && (
             <>
-              <ChevronRight className="w-4 h-4" />
-              <span className="text-white">{currentSquad.name}</span>
+              <ChevronRight className="w-5 h-5 text-slate-600" />
+              <span className="text-white font-semibold">{currentSquad.name}</span>
             </>
           )}
-        </div>
+        </nav>
 
         {/* Squad Detail View */}
         {currentSquad && currentBU ? (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-bold">
-                {viewOnly ? currentSquad.name : (
+                {!editMode ? currentSquad.name : (
                   <EditableText
                     value={currentSquad.name}
                     onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'name', v)}
                   />
                 )}
               </h2>
-              <div className={`px-3 py-1 rounded-full text-sm font-medium ${statusBg[getStatusAndScore(currentSquad.practices, store.practices).status]}`}>
-                {getStatusAndScore(currentSquad.practices, store.practices).score}%
-              </div>
+              {/* Manual RAG Status */}
+              {editMode ? (
+                <EditableSelect
+                  value={currentSquad.status || 'red'}
+                  onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'status', v)}
+                  options={[
+                    { value: 'green', label: '🟢 Green - Strong' },
+                    { value: 'amber', label: '🟡 Amber - Developing' },
+                    { value: 'red', label: '🔴 Red - Early Stage' },
+                  ]}
+                />
+              ) : (
+                <div className={`px-4 py-2 rounded-lg text-sm font-medium ${statusBg[currentSquad.status || 'red']}`}>
+                  {statusLabels[currentSquad.status || 'red']}
+                </div>
+              )}
             </div>
 
             {/* Practices */}
             <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5">
-              <h3 className="font-semibold mb-4">Security Practices</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold">Security Practices</h3>
+                <span className="text-sm text-slate-400">
+                  {getAdoptedCount(currentSquad.practices, store.practices).adopted}/
+                  {getAdoptedCount(currentSquad.practices, store.practices).total} adopted
+                </span>
+              </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 {Object.entries(store.practices).map(([key, def]) => (
                   <div key={key} className="flex items-center justify-between p-2 bg-slate-800/50 rounded">
-                    {viewOnly ? (
+                    {!editMode ? (
                       <div className="flex items-center gap-2">
                         <span className={`w-3 h-3 rounded-full ${
                           def.type === 'boolean'
@@ -436,7 +533,7 @@ export default function App() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">This Period</label>
-                  {viewOnly ? (
+                  {!editMode ? (
                     <p className="text-sm">{currentSquad.monthlyUpdate.summary || <span className="text-slate-500 italic">No update</span>}</p>
                   ) : (
                     <EditableTextarea
@@ -449,7 +546,7 @@ export default function App() {
                 </div>
                 <div>
                   <label className="block text-sm text-slate-400 mb-1">Next Period</label>
-                  {viewOnly ? (
+                  {!editMode ? (
                     <p className="text-sm">{currentSquad.monthlyUpdate.nextPeriod || <span className="text-slate-500 italic">No plans</span>}</p>
                   ) : (
                     <EditableTextarea
@@ -463,29 +560,29 @@ export default function App() {
                 <div className="flex gap-4 flex-wrap">
                   <div>
                     <label className="block text-sm text-slate-400 mb-1">Trend</label>
-                    {viewOnly ? (
-                      <div className="flex items-center gap-2">
-                        {(() => { const TrendIcon = trendIcons[currentSquad.monthlyUpdate.trend]; return <TrendIcon className="w-4 h-4" />; })()}
-                        <span className="text-sm">{trendLabels[currentSquad.monthlyUpdate.trend]}</span>
+                    {!editMode ? (
+                      <div className={`flex items-center gap-2 ${trendConfig[currentSquad.monthlyUpdate.trend].color}`}>
+                        {(() => { const T = trendConfig[currentSquad.monthlyUpdate.trend]; return <T.Icon className="w-5 h-5" />; })()}
+                        <span className="text-sm font-medium">{trendConfig[currentSquad.monthlyUpdate.trend].label}</span>
                       </div>
                     ) : (
                       <EditableSelect
                         value={currentSquad.monthlyUpdate.trend}
                         onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'monthlyUpdate.trend', v)}
                         options={[
-                          { value: 'improving', label: 'Improving' },
-                          { value: 'stable', label: 'Stable' },
-                          { value: 'declining', label: 'Declining' },
+                          { value: 'improving', label: '↗ Improving' },
+                          { value: 'stable', label: '→ Stable' },
+                          { value: 'declining', label: '↘ Needs Attention' },
                         ]}
                       />
                     )}
                   </div>
                   <div className="flex-1">
                     <label className="block text-sm text-slate-400 mb-1">Key Metric</label>
-                    {viewOnly ? (
+                    {!editMode ? (
                       <p className="text-sm">
                         <span className="text-slate-300">{currentSquad.monthlyUpdate.keyMetric.label}:</span>{' '}
-                        <span className="text-cyber-400">{currentSquad.monthlyUpdate.keyMetric.value}</span>
+                        <span className="text-cyber-400 font-medium">{currentSquad.monthlyUpdate.keyMetric.value}</span>
                         <span className="text-slate-500"> / {currentSquad.monthlyUpdate.keyMetric.target}</span>
                       </p>
                     ) : (
@@ -517,7 +614,7 @@ export default function App() {
               </div>
             </div>
 
-            {!viewOnly && (
+            {editMode && (
               <button
                 onClick={() => {
                   if (confirm('Delete this squad?')) {
@@ -537,14 +634,14 @@ export default function App() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">
-                {viewOnly ? currentBU.name : (
+                {!editMode ? currentBU.name : (
                   <EditableText
                     value={currentBU.name}
                     onChange={(v) => store.updateBusinessUnit(currentBU.id, v)}
                   />
                 )}
               </h2>
-              {!viewOnly && (
+              {editMode && (
                 <button
                   onClick={() => store.addSquad(currentBU.id)}
                   className="flex items-center gap-2 px-3 py-1.5 bg-cyber-500 hover:bg-cyber-600 rounded text-sm"
@@ -557,25 +654,26 @@ export default function App() {
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {currentBU.squads.map((squad) => {
-                const { status, score } = getStatusAndScore(squad.practices, store.practices);
-                const TrendIcon = trendIcons[squad.monthlyUpdate.trend];
+                const status = squad.status || 'red';
+                const { adopted, total } = getAdoptedCount(squad.practices, store.practices);
+                const trend = trendConfig[squad.monthlyUpdate.trend];
                 return (
                   <Tooltip key={squad.id} squad={squad} practices={store.practices}>
                     <div
                       onClick={() => setSelectedSquad(squad.id)}
-                      className={`${statusBg[status]} ${statusBgHover[status]} rounded-xl p-4 cursor-pointer transition-colors shadow-lg`}
+                      className={`${statusBg[status]} ${statusBgHover[status]} rounded-xl p-4 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
                     >
-                      <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-start justify-between mb-2">
                         <h3 className="font-semibold text-white">{squad.name}</h3>
-                        <span className="text-xs bg-black/30 px-2 py-0.5 rounded-full">{score}%</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-1 text-white/80">
-                          <TrendIcon className="w-4 h-4" />
-                          <span>{trendLabels[squad.monthlyUpdate.trend]}</span>
+                        <div className={`p-1.5 rounded-full ${trend.bgColor}`}>
+                          <trend.Icon className={`w-4 h-4 ${trend.color}`} />
                         </div>
+                      </div>
+                      <p className="text-white/80 text-sm mb-3 font-mono">{adopted}/{total} practices</p>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/70">{trend.label}</span>
                         {squad.monthlyUpdate.keyMetric.value && (
-                          <span className="text-white/90 font-medium">
+                          <span className="text-white font-medium">
                             {squad.monthlyUpdate.keyMetric.value}
                           </span>
                         )}
@@ -587,10 +685,13 @@ export default function App() {
             </div>
 
             {currentBU.squads.length === 0 && (
-              <p className="text-center text-slate-500 py-8">No squads yet. {!viewOnly && 'Add one to get started.'}</p>
+              <p className="text-center text-slate-500 py-8">No squads yet. {editMode && 'Add one to get started.'}</p>
             )}
 
-            {!viewOnly && (
+            {/* Legend */}
+            <Legend />
+
+            {editMode && (
               <button
                 onClick={() => {
                   if (confirm('Delete this business unit and all its squads?')) {
@@ -610,7 +711,7 @@ export default function App() {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold">Business Units</h2>
-              {!viewOnly && (
+              {editMode && (
                 <button
                   onClick={store.addBusinessUnit}
                   className="flex items-center gap-2 px-3 py-1.5 bg-cyber-500 hover:bg-cyber-600 rounded text-sm"
@@ -621,51 +722,55 @@ export default function App() {
               )}
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid sm:grid-cols-2 gap-5">
               {monthData.businessUnits.map((bu) => {
-                const squadStats = bu.squads.map((s) => getStatusAndScore(s.practices, store.practices));
-                const hasRed = squadStats.some(s => s.status === 'red');
-                const hasAmber = squadStats.some(s => s.status === 'amber');
+                const squadStatuses = bu.squads.map((s) => s.status || 'red');
+                const hasRed = squadStatuses.includes('red');
+                const hasAmber = squadStatuses.includes('amber');
                 const dominantStatus = hasRed ? 'red' : hasAmber ? 'amber' : 'green';
-                const avgScore = squadStats.length > 0
-                  ? Math.round(squadStats.reduce((a, b) => a + b.score, 0) / squadStats.length)
-                  : 0;
+
+                const totalAdopted = bu.squads.reduce((sum, s) => {
+                  return sum + getAdoptedCount(s.practices, store.practices).adopted;
+                }, 0);
+                const totalPractices = bu.squads.reduce((sum, s) => {
+                  return sum + getAdoptedCount(s.practices, store.practices).total;
+                }, 0);
 
                 return (
                   <div
                     key={bu.id}
                     onClick={() => setSelectedBU(bu.id)}
-                    className={`${statusBg[dominantStatus]} ${statusBgHover[dominantStatus]} rounded-xl p-5 cursor-pointer transition-colors shadow-lg`}
+                    className={`${statusBg[dominantStatus]} ${statusBgHover[dominantStatus]} rounded-xl p-5 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
                   >
                     <div className="flex items-start justify-between mb-3">
-                      <h3 className="text-lg font-semibold text-white">{bu.name}</h3>
-                      <span className="text-sm bg-black/30 px-2 py-0.5 rounded-full">{avgScore}%</span>
+                      <h3 className="text-xl font-semibold text-white">{bu.name}</h3>
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-white/80">
+                    <div className="flex items-center justify-between text-sm text-white/80 mb-3">
                       <div className="flex items-center gap-1.5">
                         <Users className="w-4 h-4" />
                         {bu.squads.length} squads
                       </div>
-                      <div className="flex gap-2">
-                        {squadStats.filter((s) => s.status === 'green').length > 0 && (
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-emerald-300" />
-                            {squadStats.filter((s) => s.status === 'green').length}
-                          </span>
-                        )}
-                        {squadStats.filter((s) => s.status === 'amber').length > 0 && (
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-amber-300" />
-                            {squadStats.filter((s) => s.status === 'amber').length}
-                          </span>
-                        )}
-                        {squadStats.filter((s) => s.status === 'red').length > 0 && (
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-red-300" />
-                            {squadStats.filter((s) => s.status === 'red').length}
-                          </span>
-                        )}
-                      </div>
+                      <span className="font-mono">{totalAdopted}/{totalPractices} practices</span>
+                    </div>
+                    <div className="flex gap-2">
+                      {squadStatuses.filter((s) => s === 'green').length > 0 && (
+                        <span className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded text-xs">
+                          <span className="w-2 h-2 rounded-full bg-emerald-300" />
+                          {squadStatuses.filter((s) => s === 'green').length}
+                        </span>
+                      )}
+                      {squadStatuses.filter((s) => s === 'amber').length > 0 && (
+                        <span className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded text-xs">
+                          <span className="w-2 h-2 rounded-full bg-amber-300" />
+                          {squadStatuses.filter((s) => s === 'amber').length}
+                        </span>
+                      )}
+                      {squadStatuses.filter((s) => s === 'red').length > 0 && (
+                        <span className="flex items-center gap-1 bg-black/20 px-2 py-0.5 rounded text-xs">
+                          <span className="w-2 h-2 rounded-full bg-red-300" />
+                          {squadStatuses.filter((s) => s === 'red').length}
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -673,8 +778,11 @@ export default function App() {
             </div>
 
             {monthData.businessUnits.length === 0 && (
-              <p className="text-center text-slate-500 py-8">No business units yet. {!viewOnly && 'Add one to get started.'}</p>
+              <p className="text-center text-slate-500 py-8">No business units yet. {editMode && 'Add one to get started.'}</p>
             )}
+
+            {/* Legend */}
+            <Legend />
           </div>
         )}
       </main>

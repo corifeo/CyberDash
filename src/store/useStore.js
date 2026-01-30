@@ -29,6 +29,7 @@ const DEFAULT_DATA = {
             {
               id: "squad-1",
               name: "Squad 1",
+              status: "amber", // Manual RAG status: green, amber, red
               practices: {
                 embeddedSecurityExperts: false,
                 threatModeling: 1,
@@ -182,6 +183,7 @@ export function useStore() {
       bu.squads.push({
         id,
         name: "New Squad",
+        status: "red", // Default to red for new squads
         practices: Object.fromEntries(
           Object.entries(prev.practices).map(([key, p]) => [
             key,
