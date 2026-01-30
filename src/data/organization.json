@@ -1,0 +1,338 @@
+{
+  "name": "Security Practices Status Update",
+  "reportingPeriod": "January 2025",
+  "businessUnits": [
+    {
+      "id": "digital-data-oversight",
+      "name": "Digital & Data Oversight",
+      "squads": [
+        {
+          "id": "data-governance-squad",
+          "name": "Data Governance Squad",
+          "practices": {
+            "embeddedSecurityExperts": true,
+            "threatModeling": 3,
+            "secureCodeReview": true,
+            "automatedSecurityTesting": 4,
+            "dependencyScanning": 4,
+            "secretsManagement": 3,
+            "securityRequirements": 4,
+            "vulnerabilityManagement": 4,
+            "incidentResponse": true,
+            "securityTesting": 3
+          },
+          "monthlyUpdate": {
+            "summary": "Enhanced threat modeling for new data classification system",
+            "nextPeriod": "Implementing automated privacy impact assessments",
+            "trend": "stable",
+            "keyMetric": { "label": "Compliance Reviews", "value": "100%", "target": "100%" }
+          }
+        },
+        {
+          "id": "privacy-compliance-team",
+          "name": "Privacy & Compliance",
+          "practices": {
+            "embeddedSecurityExperts": true,
+            "threatModeling": 3,
+            "secureCodeReview": true,
+            "automatedSecurityTesting": 3,
+            "dependencyScanning": 3,
+            "secretsManagement": 4,
+            "securityRequirements": 3,
+            "vulnerabilityManagement": 3,
+            "incidentResponse": true,
+            "securityTesting": 3
+          },
+          "monthlyUpdate": {
+            "summary": "Integrating security testing into CI/CD pipeline",
+            "nextPeriod": "Expanding threat modeling to legacy systems",
+            "trend": "improving",
+            "keyMetric": { "label": "Compliance Violations", "value": "0", "target": "0" }
+          }
+        },
+        {
+          "id": "risk-management",
+          "name": "Risk Management",
+          "practices": {
+            "embeddedSecurityExperts": false,
+            "threatModeling": 2,
+            "secureCodeReview": true,
+            "automatedSecurityTesting": 2,
+            "dependencyScanning": 2,
+            "secretsManagement": 2,
+            "securityRequirements": 3,
+            "vulnerabilityManagement": 3,
+            "incidentResponse": false,
+            "securityTesting": 2
+          },
+          "monthlyUpdate": {
+            "summary": "Recruiting security champion and defining incident response",
+            "nextPeriod": "Security champion onboarding and IR plan implementation",
+            "trend": "improving",
+            "keyMetric": { "label": "Risk Coverage", "value": "85%", "target": "95%" }
+          }
+        }
+      ]
+    },
+    {
+      "id": "digital-platforms",
+      "name": "Digital Platforms & Services",
+      "squads": [
+        {
+          "id": "api-gateway-squad",
+          "name": "API Gateway Squad",
+          "practices": {
+            "embeddedSecurityExperts": false,
+            "threatModeling": 2,
+            "secureCodeReview": true,
+            "automatedSecurityTesting": 3,
+            "dependencyScanning": 3,
+            "secretsManagement": 2,
+            "securityRequirements": 2,
+            "vulnerabilityManagement": 2,
+            "incidentResponse": true,
+            "securityTesting": 2
+          },
+          "monthlyUpdate": {
+            "summary": "Enhancing OAuth implementation and security testing",
+            "nextPeriod": "Security champion identification and threat modeling training",
+            "trend": "improving",
+            "keyMetric": { "label": "API Issues Reduced", "value": "40%", "target": "50%" }
+          }
+        },
+        {
+          "id": "cloud-infrastructure",
+          "name": "Cloud Infrastructure",
+          "practices": {
+            "embeddedSecurityExperts": false,
+            "threatModeling": 1,
+            "secureCodeReview": false,
+            "automatedSecurityTesting": 2,
+            "dependencyScanning": 1,
+            "secretsManagement": 1,
+            "securityRequirements": 1,
+            "vulnerabilityManagement": 1,
+            "incidentResponse": false,
+            "securityTesting": 1
+          },
+          "monthlyUpdate": {
+            "summary": "Establishing security baseline and champion recruitment",
+            "nextPeriod": "Security champion onboarding and baseline implementation",
+            "trend": "declining",
+            "keyMetric": { "label": "Cloud Compliance", "value": "35%", "target": "80%" }
+          }
+        },
+        {
+          "id": "identity-platform",
+          "name": "Identity Platform",
+          "practices": {
+            "embeddedSecurityExperts": true,
+            "threatModeling": 4,
+            "secureCodeReview": true,
+            "automatedSecurityTesting": 4,
+            "dependencyScanning": 3,
+            "secretsManagement": 4,
+            "securityRequirements": 3,
+            "vulnerabilityManagement": 3,
+            "incidentResponse": true,
+            "securityTesting": 4
+          },
+          "monthlyUpdate": {
+            "summary": "Advanced MFA implementation and security automation",
+            "nextPeriod": "Identity governance framework expansion",
+            "trend": "stable",
+            "keyMetric": { "label": "Auth Availability", "value": "99.9%", "target": "99.9%" }
+          }
+        },
+        {
+          "id": "messaging-services",
+          "name": "Messaging Services",
+          "practices": {
+            "embeddedSecurityExperts": false,
+            "threatModeling": 2,
+            "secureCodeReview": true,
+            "automatedSecurityTesting": 2,
+            "dependencyScanning": 2,
+            "secretsManagement": 3,
+            "securityRequirements": 2,
+            "vulnerabilityManagement": 2,
+            "incidentResponse": true,
+            "securityTesting": 2
+          },
+          "monthlyUpdate": {
+            "summary": "Expanding security testing and vulnerability management",
+            "nextPeriod": "Security champion training and threat modeling workshops",
+            "trend": "improving",
+            "keyMetric": { "label": "Message Security", "value": "80%", "target": "95%" }
+          }
+        }
+      ]
+    },
+    {
+      "id": "digital-product-eng",
+      "name": "Digital Product Engineering",
+      "squads": [
+        {
+          "id": "mobile-app-squad",
+          "name": "Mobile App Squad",
+          "practices": {
+            "embeddedSecurityExperts": false,
+            "threatModeling": 1,
+            "secureCodeReview": false,
+            "automatedSecurityTesting": 1,
+            "dependencyScanning": 1,
+            "secretsManagement": 1,
+            "securityRequirements": 1,
+            "vulnerabilityManagement": 1,
+            "incidentResponse": false,
+            "securityTesting": 1
+          },
+          "monthlyUpdate": {
+            "summary": "Beginning security assessment and champion identification",
+            "nextPeriod": "Security champion recruitment and basic training program",
+            "trend": "declining",
+            "keyMetric": { "label": "Mobile Framework", "value": "20%", "target": "70%" }
+          }
+        },
+        {
+          "id": "web-frontend-team",
+          "name": "Web Frontend",
+          "practices": {
+            "embeddedSecurityExperts": true,
+            "threatModeling": 2,
+            "secureCodeReview": true,
+            "automatedSecurityTesting": 2,
+            "dependencyScanning": 3,
+            "secretsManagement": 2,
+            "securityRequirements": 2,
+            "vulnerabilityManagement": 2,
+            "incidentResponse": false,
+            "securityTesting": 2
+          },
+          "monthlyUpdate": {
+            "summary": "Implementing CSP and expanding security testing",
+            "nextPeriod": "Incident response plan and threat modeling training",
+            "trend": "improving",
+            "keyMetric": { "label": "XSS Reduced", "value": "60%", "target": "80%" }
+          }
+        },
+        {
+          "id": "payment-systems",
+          "name": "Payment Systems",
+          "practices": {
+            "embeddedSecurityExperts": false,
+            "threatModeling": 1,
+            "secureCodeReview": false,
+            "automatedSecurityTesting": 1,
+            "dependencyScanning": 1,
+            "secretsManagement": 2,
+            "securityRequirements": 2,
+            "vulnerabilityManagement": 1,
+            "incidentResponse": false,
+            "securityTesting": 1
+          },
+          "monthlyUpdate": {
+            "summary": "Urgent security remediation in progress",
+            "nextPeriod": "Dedicated security champion assignment and intensive support",
+            "trend": "declining",
+            "keyMetric": { "label": "Critical Items", "value": "12", "target": "0" }
+          }
+        },
+        {
+          "id": "customer-portal",
+          "name": "Customer Portal",
+          "practices": {
+            "embeddedSecurityExperts": true,
+            "threatModeling": 2,
+            "secureCodeReview": true,
+            "automatedSecurityTesting": 3,
+            "dependencyScanning": 2,
+            "secretsManagement": 3,
+            "securityRequirements": 2,
+            "vulnerabilityManagement": 2,
+            "incidentResponse": true,
+            "securityTesting": 3
+          },
+          "monthlyUpdate": {
+            "summary": "Enhancing automated testing and access controls",
+            "nextPeriod": "Advanced threat modeling and security automation",
+            "trend": "improving",
+            "keyMetric": { "label": "Data Protection", "value": "95%", "target": "100%" }
+          }
+        }
+      ]
+    },
+    {
+      "id": "digital-business-opt",
+      "name": "Digital Business Optimisation",
+      "squads": [
+        {
+          "id": "analytics-platform",
+          "name": "Analytics Platform",
+          "practices": {
+            "embeddedSecurityExperts": true,
+            "threatModeling": 3,
+            "secureCodeReview": true,
+            "automatedSecurityTesting": 3,
+            "dependencyScanning": 3,
+            "secretsManagement": 4,
+            "securityRequirements": 3,
+            "vulnerabilityManagement": 4,
+            "incidentResponse": true,
+            "securityTesting": 3
+          },
+          "monthlyUpdate": {
+            "summary": "Advanced analytics security and privacy controls",
+            "nextPeriod": "Machine learning security and data lineage enhancement",
+            "trend": "stable",
+            "keyMetric": { "label": "Datasets Classified", "value": "100%", "target": "100%" }
+          }
+        },
+        {
+          "id": "data-warehouse-squad",
+          "name": "Data Warehouse",
+          "practices": {
+            "embeddedSecurityExperts": false,
+            "threatModeling": 2,
+            "secureCodeReview": true,
+            "automatedSecurityTesting": 2,
+            "dependencyScanning": 2,
+            "secretsManagement": 3,
+            "securityRequirements": 2,
+            "vulnerabilityManagement": 3,
+            "incidentResponse": true,
+            "securityTesting": 2
+          },
+          "monthlyUpdate": {
+            "summary": "Expanding security testing and recruiting champion",
+            "nextPeriod": "Security champion onboarding and threat modeling",
+            "trend": "improving",
+            "keyMetric": { "label": "Security Coverage", "value": "75%", "target": "90%" }
+          }
+        },
+        {
+          "id": "bi-reporting",
+          "name": "BI & Reporting",
+          "practices": {
+            "embeddedSecurityExperts": true,
+            "threatModeling": 3,
+            "secureCodeReview": true,
+            "automatedSecurityTesting": 3,
+            "dependencyScanning": 2,
+            "secretsManagement": 3,
+            "securityRequirements": 3,
+            "vulnerabilityManagement": 3,
+            "incidentResponse": true,
+            "securityTesting": 3
+          },
+          "monthlyUpdate": {
+            "summary": "Advanced report security and self-service governance",
+            "nextPeriod": "Enhanced data visualization security and user training",
+            "trend": "stable",
+            "keyMetric": { "label": "Report Coverage", "value": "100%", "target": "100%" }
+          }
+        }
+      ]
+    }
+  ]
+}

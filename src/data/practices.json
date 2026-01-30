@@ -1,0 +1,82 @@
+{
+  "embeddedSecurityExperts": {
+    "id": "embeddedSecurityExperts",
+    "name": "Embedded Security Experts",
+    "shortName": "Security Experts",
+    "description": "Security champions within development teams",
+    "type": "boolean",
+    "category": "people"
+  },
+  "threatModeling": {
+    "id": "threatModeling",
+    "name": "Threat Modeling",
+    "shortName": "Threat Model",
+    "description": "Systematic threat analysis during design phase",
+    "type": "maturity",
+    "category": "process"
+  },
+  "secureCodeReview": {
+    "id": "secureCodeReview",
+    "name": "Secure Code Review",
+    "shortName": "Code Review",
+    "description": "Security-focused peer review process",
+    "type": "boolean",
+    "category": "process"
+  },
+  "automatedSecurityTesting": {
+    "id": "automatedSecurityTesting",
+    "name": "Automated Security Testing",
+    "shortName": "Auto Testing",
+    "description": "SAST/DAST integrated in CI/CD pipeline",
+    "type": "maturity",
+    "category": "tooling"
+  },
+  "dependencyScanning": {
+    "id": "dependencyScanning",
+    "name": "Dependency Scanning",
+    "shortName": "Dep Scanning",
+    "description": "Automated scanning of third-party components",
+    "type": "maturity",
+    "category": "tooling"
+  },
+  "secretsManagement": {
+    "id": "secretsManagement",
+    "name": "Secrets Management",
+    "shortName": "Secrets Mgmt",
+    "description": "Secure handling of credentials and sensitive data",
+    "type": "maturity",
+    "category": "tooling"
+  },
+  "securityRequirements": {
+    "id": "securityRequirements",
+    "name": "Security Requirements",
+    "shortName": "Requirements",
+    "description": "Defined and tracked security requirements in SDLC",
+    "type": "maturity",
+    "category": "process"
+  },
+  "vulnerabilityManagement": {
+    "id": "vulnerabilityManagement",
+    "name": "Vulnerability Management",
+    "shortName": "Vuln Mgmt",
+    "description": "Systematic vulnerability remediation process",
+    "type": "maturity",
+    "category": "process"
+  },
+  "incidentResponse": {
+    "id": "incidentResponse",
+    "name": "Incident Response",
+    "shortName": "Incident Resp",
+    "description": "Defined security incident procedures",
+    "type": "boolean",
+    "category": "process"
+  },
+  "securityTesting": {
+    "id": "securityTesting",
+    "name": "Security Testing Strategy",
+    "shortName": "Testing",
+    "description": "Comprehensive security testing approach",
+    "type": "maturity",
+    "category": "process"
+  }
+}
