@@ -138,14 +138,18 @@ function getPracticeAdoption(squads, definitions) {
 
 // Calculate automatic RAG status for a team based on practice adoption
 // Returns 'green', 'amber', or 'red' based on percentage of practices at target
-function calculateAutoRagStatus(squad, practices) {
-  const { adopted, total } = getAdoptedCount(squad.practices, practices);
+// thresholds: { green: 0.75, amber: 0.4 } - optional, defaults to 75%/40%
+function calculateAutoRagStatus(squad, practices, thresholds) {
+  const { meetsTarget, total } = getAdoptedCount(squad.practices, practices);
   if (total === 0) return 'amber'; // No practices to measure
 
-  const percentage = adopted / total;
-  if (percentage >= 0.75) return 'green';  // 75%+ at target = green
-  if (percentage >= 0.4) return 'amber';   // 40-74% = amber
-  return 'red';                             // <40% = red
+  const greenThreshold = thresholds?.green ?? 0.75;
+  const amberThreshold = thresholds?.amber ?? 0.4;
+
+  const percentage = meetsTarget / total;
+  if (percentage >= greenThreshold) return 'green';
+  if (percentage >= amberThreshold) return 'amber';
+  return 'red';
 }
 
 // Stacked Pills Component - Option E visualization
@@ -340,11 +344,21 @@ function SettingsModal({
   maturityScale,
   months,
   currentMonth,
-  colorPreset,
-  colorPresets,
+  colorTheme,
+  colorThemes,
   ragColors,
   buThresholds,
+  teamThresholds,
   darkMode = true,
+  // Preset props
+  presetList,
+  currentPresetId,
+  currentPreset,
+  onLoadPreset,
+  onResetToPresetDefaults,
+  onExportAsPreset,
+  onImportPreset,
+  // Practice props
   onUpdatePractice,
   onAddPractice,
   onDeletePractice,
@@ -354,6 +368,7 @@ function SettingsModal({
   onSetColorPreset,
   onUpdateRagColor,
   onUpdateBuThreshold,
+  onUpdateTeamThreshold,
   onExportAllArchive,
   onImportAllArchive,
   onExportSettings,
@@ -365,10 +380,11 @@ function SettingsModal({
 }) {
   const [newPracticeName, setNewPracticeName] = useState('');
   const [newPracticeType, setNewPracticeType] = useState('maturity');
-  const [activeTab, setActiveTab] = useState('practices');
+  const [activeTab, setActiveTab] = useState('preset');
   const [showPracticeGuide, setShowPracticeGuide] = useState(false);
   const archiveInputRef = useRef(null);
   const settingsInputRef = useRef(null);
+  const presetInputRef = useRef(null);
 
   // Theme for light/dark mode
   const st = darkMode ? {
@@ -425,6 +441,7 @@ function SettingsModal({
   };
 
   const tabs = [
+    { id: 'preset', label: 'Preset' },
     { id: 'practices', label: 'Practices' },
     { id: 'scale', label: 'Scale' },
     { id: 'colors', label: 'Colors' },
@@ -462,9 +479,119 @@ function SettingsModal({
         {/* Hidden file inputs */}
         <input ref={archiveInputRef} type="file" accept=".json" onChange={handleArchiveImport} className="hidden" />
         <input ref={settingsInputRef} type="file" accept=".json" onChange={handleSettingsImport} className="hidden" />
+        <input ref={presetInputRef} type="file" accept=".json" onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              if (onImportPreset(e.target.result)) {
+                alert('Preset imported successfully!');
+              } else {
+                alert('Failed to import preset. Make sure it is a valid preset file.');
+              }
+            };
+            reader.readAsText(file);
+          }
+        }} className="hidden" />
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
+          {activeTab === 'preset' && (
+            <div className="space-y-4">
+              <p className={`text-sm ${st.textHint}`}>
+                Choose a configuration preset or import a custom one. Presets define practices, maturity scales, and thresholds.
+              </p>
+
+              {/* Available Presets */}
+              <div>
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-3`}>Available Presets</h3>
+                <div className="space-y-2">
+                  {presetList?.map((preset) => (
+                    <div
+                      key={preset.id}
+                      className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                        currentPresetId === preset.id
+                          ? `border-cyber-500 ${st.cardBg}`
+                          : `${st.border} ${st.hover}`
+                      }`}
+                      onClick={() => {
+                        if (currentPresetId !== preset.id) {
+                          if (confirm(`Switch to "${preset.name}" preset? This will replace your current practices and settings.`)) {
+                            onLoadPreset(preset.id);
+                          }
+                        }
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className={`font-medium ${st.text}`}>{preset.name}</span>
+                          {currentPresetId === preset.id && (
+                            <span className="ml-2 text-xs bg-cyber-500/20 text-cyber-400 px-2 py-0.5 rounded">Active</span>
+                          )}
+                        </div>
+                      </div>
+                      <p className={`text-xs ${st.textHint} mt-1`}>{preset.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Current Preset Info */}
+              {currentPreset && (
+                <div className={`${st.cardBg} rounded-lg p-4`}>
+                  <h3 className={`text-sm font-medium ${st.textMuted} mb-2`}>Current Preset: {currentPreset.name}</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className={st.textHint}>Practices:</span>
+                      <span className={`ml-2 ${st.text}`}>{Object.keys(currentPreset.practices || {}).length}</span>
+                    </div>
+                    <div>
+                      <span className={st.textHint}>Maturity Levels:</span>
+                      <span className={`ml-2 ${st.text}`}>{currentPreset.maturityScale?.filter(l => l.level > 0).length || 0}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-4">
+                    <button
+                      onClick={() => {
+                        if (confirm('Reset all settings to preset defaults? Your data will be kept.')) {
+                          onResetToPresetDefaults();
+                        }
+                      }}
+                      className={`px-3 py-1.5 text-sm rounded ${st.cardBgAlt} ${st.textMuted} ${st.hover}`}
+                    >
+                      <RotateCcw className="w-3 h-3 inline mr-1" />
+                      Reset to Defaults
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Import/Export Preset */}
+              <div className={`${st.cardBg} rounded-lg p-4`}>
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-3`}>Import / Export</h3>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => presetInputRef.current?.click()}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded ${st.cardBgAlt} ${st.textMuted} ${st.hover} text-sm`}
+                  >
+                    <Upload className="w-4 h-4" />
+                    Import Preset
+                  </button>
+                  <button
+                    onClick={() => onExportAsPreset()}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded ${st.cardBgAlt} ${st.textMuted} ${st.hover} text-sm`}
+                  >
+                    <Download className="w-4 h-4" />
+                    Export Current
+                  </button>
+                </div>
+                <p className={`text-xs ${st.textDim} mt-2`}>
+                  Export your current configuration as a preset file to share or backup.
+                </p>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'practices' && (
             <div className="space-y-4">
               {/* Add new practice */}
@@ -700,25 +827,25 @@ function SettingsModal({
                 Choose a color theme for status cards, or customize each color with HEX values.
               </p>
 
-              {/* Color Presets */}
+              {/* Color Themes */}
               <div>
                 <h3 className={`text-sm font-medium ${st.textMuted} mb-3`}>Color Theme</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  {Object.entries(colorPresets).map(([name, preset]) => (
+                  {Object.entries(colorThemes || {}).map(([name, theme]) => (
                     <button
                       key={name}
                       onClick={() => onSetColorPreset(name)}
                       className={`p-3 rounded-lg border-2 transition-all ${
-                        colorPreset === name
+                        colorTheme === name
                           ? `border-cyber-500 ${st.cardBg}`
                           : `${st.border} ${st.hover}`
                       }`}
                     >
                       <div className="flex gap-2 mb-2">
-                        <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.green.hex }} />
-                        <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.amber.hex }} />
-                        <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.red.hex }} />
-                        <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.none.hex }} />
+                        <div className="w-6 h-6 rounded" style={{ backgroundColor: theme.green.hex }} />
+                        <div className="w-6 h-6 rounded" style={{ backgroundColor: theme.amber.hex }} />
+                        <div className="w-6 h-6 rounded" style={{ backgroundColor: theme.red.hex }} />
+                        <div className="w-6 h-6 rounded" style={{ backgroundColor: theme.none.hex }} />
                       </div>
                       <span className={`text-xs ${st.textHint} capitalize`}>{name}</span>
                     </button>
@@ -730,7 +857,7 @@ function SettingsModal({
               <div>
                 <h3 className={`text-sm font-medium ${st.textMuted} mb-3`}>
                   Status Colors & Labels
-                  {colorPreset === 'custom' && <span className="ml-2 text-xs text-cyber-400">(Custom)</span>}
+                  {colorTheme === 'custom' && <span className="ml-2 text-xs text-cyber-400">(Custom)</span>}
                 </h3>
                 <div className="space-y-2">
                   {['green', 'amber', 'red', 'none'].map((status) => (
@@ -816,6 +943,53 @@ function SettingsModal({
                     <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.red?.hex || '#dc2626' }} />
                     <span className={`text-sm ${st.textMuted} w-32`}>Red</span>
                     <span className={`text-xs ${st.textDim}`}>Score below amber threshold</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Team Auto-RAG Thresholds */}
+              <div>
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-3`}>
+                  Team Auto-Status Thresholds
+                </h3>
+                <p className={`text-xs ${st.textDim} mb-3`}>
+                  Configure the practice adoption percentage thresholds for automatic team status calculation.
+                </p>
+                <div className="space-y-2">
+                  <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
+                    <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.green?.hex || '#059669' }} />
+                    <span className={`text-sm ${st.textMuted} w-32`}>Green threshold</span>
+                    <span className={`text-xs ${st.textDim}`}>Adoption ≥</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={Math.round((teamThresholds?.green ?? 0.75) * 100)}
+                      onChange={(e) => onUpdateTeamThreshold('green', parseInt(e.target.value) / 100)}
+                      className={`w-20 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
+                    />
+                    <span className={`text-xs ${st.textDim}`}>%</span>
+                  </div>
+                  <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
+                    <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.amber?.hex || '#d97706' }} />
+                    <span className={`text-sm ${st.textMuted} w-32`}>Amber threshold</span>
+                    <span className={`text-xs ${st.textDim}`}>Adoption ≥</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="5"
+                      value={Math.round((teamThresholds?.amber ?? 0.4) * 100)}
+                      onChange={(e) => onUpdateTeamThreshold('amber', parseInt(e.target.value) / 100)}
+                      className={`w-20 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
+                    />
+                    <span className={`text-xs ${st.textDim}`}>%</span>
+                  </div>
+                  <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
+                    <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.red?.hex || '#dc2626' }} />
+                    <span className={`text-sm ${st.textMuted} w-32`}>Red</span>
+                    <span className={`text-xs ${st.textDim}`}>Below amber threshold</span>
                   </div>
                 </div>
               </div>
@@ -1203,11 +1377,21 @@ export default function App() {
           maturityScale={store.maturityScale}
           months={store.months}
           currentMonth={store.currentMonth}
-          colorPreset={store.colorPreset}
-          colorPresets={store.colorPresets}
+          colorTheme={store.colorTheme}
+          colorThemes={store.colorThemes}
           ragColors={store.ragColors}
           buThresholds={store.buThresholds}
+          teamThresholds={store.teamThresholds}
           darkMode={store.darkMode}
+          // Preset props
+          presetList={store.presetList}
+          currentPresetId={store.currentPresetId}
+          currentPreset={store.currentPreset}
+          onLoadPreset={store.loadPreset}
+          onResetToPresetDefaults={store.resetToPresetDefaults}
+          onExportAsPreset={store.exportAsPreset}
+          onImportPreset={store.importPreset}
+          // Practice props
           onUpdatePractice={store.updatePractice}
           onAddPractice={store.addPractice}
           onDeletePractice={store.deletePractice}
@@ -1217,6 +1401,7 @@ export default function App() {
           onSetColorPreset={store.setColorPreset}
           onUpdateRagColor={store.updateRagColor}
           onUpdateBuThreshold={store.updateBuThreshold}
+          onUpdateTeamThreshold={store.updateTeamThreshold}
           onExportAllArchive={store.exportAllArchive}
           onImportAllArchive={store.importAllArchive}
           onExportSettings={store.exportSettings}
@@ -1313,36 +1498,19 @@ export default function App() {
                 )}
               </h2>
               {(() => {
-                const squadStatus = currentSquad.tracked === false ? 'none' : (currentSquad.status || 'red');
-                const sc = getStatusInfo(store.ragColors, squadStatus);
-                const autoRag = calculateAutoRagStatus(currentSquad, store.practices);
-                return editMode && currentSquad.tracked !== false ? (
-                  <div className="flex items-center gap-2">
-                    <EditableSelect
-                      value={squadStatus}
-                      onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'status', v)}
-                      options={[
-                        { value: 'green', label: `🟢 ${store.ragColors?.green?.label || 'Strong'}` },
-                        { value: 'amber', label: `🟡 ${store.ragColors?.amber?.label || 'Developing'}` },
-                        { value: 'red', label: `🔴 ${store.ragColors?.red?.label || 'Early Stage'}` },
-                      ]}
-                    />
-                    {squadStatus !== autoRag && (
-                      <button
-                        onClick={() => store.updateSquad(currentBU.id, currentSquad.id, 'status', autoRag)}
-                        className={`text-xs px-2 py-1 rounded ${theme.cardAlt} ${theme.muted} hover:text-cyber-400`}
-                        title={`Auto-calculated: ${autoRag} (based on ${getAdoptedCount(currentSquad.practices, store.practices).meetsTarget}/${getAdoptedCount(currentSquad.practices, store.practices).total} at target)`}
-                      >
-                        Reset to auto
-                      </button>
-                    )}
-                  </div>
-                ) : (
+                const autoRag = calculateAutoRagStatus(currentSquad, store.practices, store.teamThresholds);
+                const isAutoStatus = currentSquad.autoStatus !== false; // Default to auto
+                const displayStatus = currentSquad.tracked === false ? 'none' : (isAutoStatus ? autoRag : (currentSquad.status || autoRag));
+                const sc = getStatusInfo(store.ragColors, displayStatus);
+                const adoptedInfo = getAdoptedCount(currentSquad.practices, store.practices);
+                return (
                   <div
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2"
                     style={{ backgroundColor: sc.hex }}
+                    title={isAutoStatus ? `Auto: ${adoptedInfo.meetsTarget}/${adoptedInfo.total} at target` : 'Manual override'}
                   >
                     {sc.label}
+                    {isAutoStatus && <span className="text-xs opacity-70">(auto)</span>}
                   </div>
                 );
               })()}
@@ -1373,11 +1541,6 @@ export default function App() {
                       onClick={() => {
                         const willBeTracked = currentSquad.tracked === false;
                         store.updateSquad(currentBU.id, currentSquad.id, 'tracked', willBeTracked);
-                        // Auto-assign RAG status when enabling tracking
-                        if (willBeTracked) {
-                          const autoStatus = calculateAutoRagStatus(currentSquad, store.practices);
-                          store.updateSquad(currentBU.id, currentSquad.id, 'status', autoStatus);
-                        }
                       }}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors cursor-pointer hover:opacity-80 ${
                         currentSquad.tracked !== false
@@ -1395,6 +1558,38 @@ export default function App() {
                       </span>
                     </button>
                   </div>
+
+                  {/* Auto Status Toggle + Manual Override */}
+                  {currentSquad.tracked !== false && (
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => store.updateSquad(currentBU.id, currentSquad.id, 'autoStatus', currentSquad.autoStatus === false)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors cursor-pointer hover:opacity-80 ${
+                          currentSquad.autoStatus !== false
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : `${theme.card} ${theme.muted}`
+                        }`}
+                        title={currentSquad.autoStatus !== false
+                          ? `Auto-calculated from practices (${getAdoptedCount(currentSquad.practices, store.practices).meetsTarget}/${getAdoptedCount(currentSquad.practices, store.practices).total} at target)`
+                          : 'Click to enable auto status calculation'
+                        }
+                      >
+                        <Target className="w-4 h-4" />
+                        <span className="text-sm font-medium">Auto Status</span>
+                      </button>
+                      {currentSquad.autoStatus === false && (
+                        <select
+                          value={currentSquad.status || 'red'}
+                          onChange={(e) => store.updateSquad(currentBU.id, currentSquad.id, 'status', e.target.value)}
+                          className={`${theme.input} border rounded px-2 py-1.5 text-sm`}
+                        >
+                          <option value="green">🟢 {store.ragColors?.green?.label || 'Strong'}</option>
+                          <option value="amber">🟡 {store.ragColors?.amber?.label || 'Developing'}</option>
+                          <option value="red">🔴 {store.ragColors?.red?.label || 'Early Stage'}</option>
+                        </select>
+                      )}
+                    </div>
+                  )}
 
                   {/* Weight */}
                   <div className="flex items-center gap-3">

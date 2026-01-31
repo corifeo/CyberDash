@@ -1,20 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Import defaults from external JSON files for easy editing
-import DEFAULT_PRACTICES from '../defaults/practices.json';
-import DEFAULT_MATURITY_SCALE from '../defaults/maturityScale.json';
-import DEFAULT_TEAM_TYPES from '../defaults/teamTypes.json';
+// Import presets
+import DEFAULT_PRESET from '../defaults/presets/default.json';
+import CMM_PRESET from '../defaults/presets/cmm.json';
 
-// Default RAG color schemes with hex values
-const DEFAULT_RAG_COLORS = {
-  green: { hex: '#059669', label: 'Strong' },
-  amber: { hex: '#d97706', label: 'Developing' },
-  red: { hex: '#dc2626', label: 'Early Stage' },
-  none: { hex: '#64748b', label: 'Not Tracked' },
+// Available presets
+const PRESETS = {
+  default: DEFAULT_PRESET,
+  cmm: CMM_PRESET,
 };
 
-// Available color presets with hex values
-const COLOR_PRESETS = {
+// Available color themes (can be applied on top of any preset)
+const COLOR_THEMES = {
   default: {
     green: { hex: '#059669' },
     amber: { hex: '#d97706' },
@@ -41,33 +38,31 @@ const COLOR_PRESETS = {
   },
 };
 
-// Default practice order
-const DEFAULT_PRACTICE_ORDER = Object.keys(DEFAULT_PRACTICES);
-
-// Default BU status thresholds
-const DEFAULT_BU_THRESHOLDS = {
-  green: 2.5,  // Score >= this = green
-  amber: 1.5,  // Score >= this = amber (but < green)
-};
-
-// Default starter data
-const DEFAULT_DATA = {
-  currentMonth: "2025-01",
-  maturityScale: DEFAULT_MATURITY_SCALE,
-  practices: DEFAULT_PRACTICES,
-  practiceOrder: DEFAULT_PRACTICE_ORDER,
-  ragColors: DEFAULT_RAG_COLORS,
-  teamTypes: DEFAULT_TEAM_TYPES,
-  buThresholds: DEFAULT_BU_THRESHOLDS,
-  darkMode: true, // Default to dark mode
-  colorPreset: 'default',
-  months: {
-    "2025-01": {
-      reportingPeriod: "January 2025",
-      businessUnits: [],
+// Build default data from a preset
+function buildDataFromPreset(preset) {
+  return {
+    currentMonth: "2025-01",
+    preset: preset.id,
+    maturityScale: preset.maturityScale,
+    practices: preset.practices,
+    practiceOrder: preset.practiceOrder,
+    ragColors: preset.ragColors,
+    teamTypes: preset.teamTypes,
+    buThresholds: preset.thresholds?.bu || { green: 2.5, amber: 1.5 },
+    teamThresholds: preset.thresholds?.team || { green: 0.75, amber: 0.4 },
+    darkMode: true,
+    colorTheme: 'default',
+    months: {
+      "2025-01": {
+        reportingPeriod: "January 2025",
+        businessUnits: [],
+      },
     },
-  },
-};
+  };
+}
+
+// Default starter data (using default preset)
+const DEFAULT_DATA = buildDataFromPreset(DEFAULT_PRESET);
 
 const STORAGE_KEY = "cyberdash-data";
 
@@ -591,19 +586,19 @@ export function useStore() {
     setData((prev) => ({ ...prev, darkMode: enabled }));
   }, []);
 
-  // Set color preset
-  const setColorPreset = useCallback((presetName) => {
+  // Set color theme (applies color scheme on top of current preset)
+  const setColorPreset = useCallback((themeName) => {
     setData((prev) => {
-      const preset = COLOR_PRESETS[presetName];
-      if (!preset) return prev;
+      const theme = COLOR_THEMES[themeName];
+      if (!theme) return prev;
       return {
         ...prev,
-        colorPreset: presetName,
+        colorTheme: themeName,
         ragColors: {
-          green: { hex: preset.green.hex, label: prev.ragColors?.green?.label || 'Strong' },
-          amber: { hex: preset.amber.hex, label: prev.ragColors?.amber?.label || 'Developing' },
-          red: { hex: preset.red.hex, label: prev.ragColors?.red?.label || 'Early Stage' },
-          none: { hex: preset.none.hex, label: prev.ragColors?.none?.label || 'Not Tracked' },
+          green: { hex: theme.green.hex, label: prev.ragColors?.green?.label || 'Strong' },
+          amber: { hex: theme.amber.hex, label: prev.ragColors?.amber?.label || 'Developing' },
+          red: { hex: theme.red.hex, label: prev.ragColors?.red?.label || 'Early Stage' },
+          none: { hex: theme.none.hex, label: prev.ragColors?.none?.label || 'Not Tracked' },
         },
       };
     });
@@ -613,12 +608,12 @@ export function useStore() {
   const updateRagColor = useCallback((status, field, value) => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
-      if (!newData.ragColors) newData.ragColors = DEFAULT_RAG_COLORS;
+      if (!newData.ragColors) newData.ragColors = DEFAULT_PRESET.ragColors;
       if (!newData.ragColors[status]) {
         newData.ragColors[status] = { hex: '#888888', label: status };
       }
       newData.ragColors[status][field] = value;
-      newData.colorPreset = 'custom'; // Mark as custom when user changes colors
+      newData.colorTheme = 'custom'; // Mark as custom when user changes colors
       return newData;
     });
   }, []);
@@ -732,6 +727,151 @@ export function useStore() {
     return migratedCount;
   }, []);
 
+  // Load a preset (replaces practices, scale, colors, thresholds but keeps data)
+  const loadPreset = useCallback((presetId) => {
+    const preset = PRESETS[presetId];
+    if (!preset) return false;
+
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+
+      // Update configuration from preset
+      newData.preset = preset.id;
+      newData.maturityScale = preset.maturityScale;
+      newData.practices = preset.practices;
+      newData.practiceOrder = preset.practiceOrder;
+      newData.ragColors = preset.ragColors;
+      newData.teamTypes = preset.teamTypes;
+      newData.buThresholds = preset.thresholds?.bu || { green: 2.5, amber: 1.5 };
+      newData.teamThresholds = preset.thresholds?.team || { green: 0.75, amber: 0.4 };
+
+      // Initialize practices for all existing squads with the new practice set
+      Object.values(newData.months).forEach((month) => {
+        month.businessUnits.forEach((bu) => {
+          bu.squads.forEach((squad) => {
+            const newPractices = {};
+            Object.entries(preset.practices).forEach(([key, p]) => {
+              // Keep existing value if practice exists, otherwise set default
+              newPractices[key] = squad.practices?.[key] ?? (p.type === 'boolean' ? false : 0);
+            });
+            squad.practices = newPractices;
+          });
+        });
+      });
+
+      return newData;
+    });
+
+    return true;
+  }, []);
+
+  // Reset configuration to current preset defaults (keeps data)
+  const resetToPresetDefaults = useCallback(() => {
+    setData((prev) => {
+      const presetId = prev.preset || 'default';
+      const preset = PRESETS[presetId];
+      if (!preset) return prev;
+
+      const newData = JSON.parse(JSON.stringify(prev));
+
+      // Reset configuration to preset defaults
+      newData.maturityScale = preset.maturityScale;
+      newData.practices = preset.practices;
+      newData.practiceOrder = preset.practiceOrder;
+      newData.ragColors = preset.ragColors;
+      newData.teamTypes = preset.teamTypes;
+      newData.buThresholds = preset.thresholds?.bu || { green: 2.5, amber: 1.5 };
+      newData.teamThresholds = preset.thresholds?.team || { green: 0.75, amber: 0.4 };
+
+      return newData;
+    });
+  }, []);
+
+  // Update team auto-RAG thresholds
+  const updateTeamThreshold = useCallback((level, value) => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData.teamThresholds) {
+        newData.teamThresholds = { green: 0.75, amber: 0.4 };
+      }
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue) && numValue >= 0 && numValue <= 1) {
+        newData.teamThresholds[level] = numValue;
+      }
+      return newData;
+    });
+  }, []);
+
+  // Export current configuration as a preset
+  const exportAsPreset = useCallback((name, description) => {
+    const exportObj = {
+      id: 'custom-' + Date.now(),
+      name: name || 'Custom Preset',
+      description: description || 'Exported from CyberDash',
+      version: '1.0',
+      practices: data.practices,
+      practiceOrder: data.practiceOrder,
+      maturityScale: data.maturityScale,
+      ragColors: data.ragColors,
+      teamTypes: data.teamTypes,
+      thresholds: {
+        bu: data.buThresholds,
+        team: data.teamThresholds,
+      },
+    };
+    const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `cyberdash-preset-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [data]);
+
+  // Import a custom preset
+  const importPreset = useCallback((jsonString) => {
+    try {
+      const preset = JSON.parse(jsonString);
+      if (!preset.practices || !preset.maturityScale) {
+        return false;
+      }
+      // Load the imported preset
+      setData((prev) => {
+        const newData = JSON.parse(JSON.stringify(prev));
+
+        newData.preset = preset.id || 'custom';
+        newData.maturityScale = preset.maturityScale;
+        newData.practices = preset.practices;
+        newData.practiceOrder = preset.practiceOrder || Object.keys(preset.practices);
+        newData.ragColors = preset.ragColors || prev.ragColors;
+        newData.teamTypes = preset.teamTypes || prev.teamTypes;
+        newData.buThresholds = preset.thresholds?.bu || { green: 2.5, amber: 1.5 };
+        newData.teamThresholds = preset.thresholds?.team || { green: 0.75, amber: 0.4 };
+
+        // Initialize practices for all existing squads
+        Object.values(newData.months).forEach((month) => {
+          month.businessUnits.forEach((bu) => {
+            bu.squads.forEach((squad) => {
+              const newPractices = {};
+              Object.entries(preset.practices).forEach(([key, p]) => {
+                newPractices[key] = squad.practices?.[key] ?? (p.type === 'boolean' ? false : 0);
+              });
+              squad.practices = newPractices;
+            });
+          });
+        });
+
+        return newData;
+      });
+      return true;
+    } catch (e) {
+      console.error('Failed to import preset:', e);
+      return false;
+    }
+  }, []);
+
   // Check if there are any timestamp-based practice IDs that need migration
   const hasTimestampIds = Object.keys(data.practices).some(isTimestampId);
 
@@ -741,6 +881,10 @@ export function useStore() {
     .filter(id => data.practices[id])
     .map(id => ({ id, ...data.practices[id] }));
 
+  // Get current preset info
+  const currentPresetId = data.preset || 'default';
+  const currentPreset = PRESETS[currentPresetId];
+
   return {
     data,
     currentMonth: data.currentMonth,
@@ -748,13 +892,19 @@ export function useStore() {
     practices: data.practices,
     practiceOrder,
     orderedPractices,
-    maturityScale: data.maturityScale || DEFAULT_MATURITY_SCALE,
-    ragColors: data.ragColors || DEFAULT_RAG_COLORS,
-    teamTypes: data.teamTypes || DEFAULT_TEAM_TYPES,
-    buThresholds: data.buThresholds || DEFAULT_BU_THRESHOLDS,
-    darkMode: data.darkMode !== false, // Default to true
-    colorPreset: data.colorPreset || 'default',
-    colorPresets: COLOR_PRESETS,
+    maturityScale: data.maturityScale || DEFAULT_PRESET.maturityScale,
+    ragColors: data.ragColors || DEFAULT_PRESET.ragColors,
+    teamTypes: data.teamTypes || DEFAULT_PRESET.teamTypes,
+    buThresholds: data.buThresholds || { green: 2.5, amber: 1.5 },
+    teamThresholds: data.teamThresholds || { green: 0.75, amber: 0.4 },
+    darkMode: data.darkMode !== false,
+    colorTheme: data.colorTheme || 'default',
+    colorThemes: COLOR_THEMES,
+    // Preset system
+    presets: PRESETS,
+    presetList: Object.entries(PRESETS).map(([id, p]) => ({ id, name: p.name, description: p.description })),
+    currentPresetId,
+    currentPreset,
     months: Object.keys(data.months).sort().reverse(),
     setCurrentMonth,
     createNewMonth,
@@ -772,8 +922,8 @@ export function useStore() {
     importAllArchive,
     exportSettings,
     importSettings,
-    exportData, // Legacy
-    importData, // Legacy
+    exportData,
+    importData,
     resetData,
     resetToLastPeriod,
     updatePractice,
@@ -782,6 +932,7 @@ export function useStore() {
     updateMaturityScale,
     updateTeamType,
     updateBuThreshold,
+    updateTeamThreshold,
     setDarkMode,
     setColorPreset,
     updateRagColor,
@@ -789,6 +940,11 @@ export function useStore() {
     reorderPractice,
     migratePracticeIds,
     hasTimestampIds,
+    // Preset functions
+    loadPreset,
+    resetToPresetDefaults,
+    exportAsPreset,
+    importPreset,
   };
 }
 

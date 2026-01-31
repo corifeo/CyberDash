@@ -1,0 +1,168 @@
+{
+  "id": "cmm",
+  "name": "CMMI Security Practices",
+  "description": "Security practices aligned with Capability Maturity Model Integration (CMMI) framework with 5 maturity levels.",
+  "version": "1.0",
+  "practices": {
+    "secureSDLC": {
+      "name": "Secure SDLC",
+      "type": "maturity",
+      "target": 3,
+      "color": "#8b5cf6",
+      "description": "Integration of security throughout the software development lifecycle",
+      "category": "Engineering"
+    },
+    "requirementsManagement": {
+      "name": "Security Requirements",
+      "type": "maturity",
+      "target": 3,
+      "color": "#3b82f6",
+      "description": "Security requirements identification, documentation, and traceability",
+      "category": "Engineering"
+    },
+    "technicalSolution": {
+      "name": "Secure Architecture",
+      "type": "maturity",
+      "target": 3,
+      "color": "#06b6d4",
+      "description": "Security architecture patterns and secure design principles",
+      "category": "Engineering"
+    },
+    "verification": {
+      "name": "Security Verification",
+      "type": "maturity",
+      "target": 3,
+      "color": "#14b8a6",
+      "description": "Security testing, code review, and verification activities",
+      "category": "Engineering"
+    },
+    "validation": {
+      "name": "Security Validation",
+      "type": "maturity",
+      "target": 3,
+      "color": "#22c55e",
+      "description": "Validation that security requirements are met in production",
+      "category": "Engineering"
+    },
+    "configurationManagement": {
+      "name": "Configuration Management",
+      "type": "maturity",
+      "target": 3,
+      "color": "#eab308",
+      "description": "Secure configuration management and change control",
+      "category": "Support"
+    },
+    "qualityAssurance": {
+      "name": "Security Quality Assurance",
+      "type": "maturity",
+      "target": 3,
+      "color": "#f97316",
+      "description": "Security quality assurance processes and audits",
+      "category": "Support"
+    },
+    "riskManagement": {
+      "name": "Risk Management",
+      "type": "maturity",
+      "target": 3,
+      "color": "#ef4444",
+      "description": "Security risk identification, assessment, and mitigation",
+      "category": "Project Management"
+    },
+    "supplierManagement": {
+      "name": "Supplier Security",
+      "type": "maturity",
+      "target": 3,
+      "color": "#ec4899",
+      "description": "Third-party and supply chain security management",
+      "category": "Project Management"
+    },
+    "incidentManagement": {
+      "name": "Incident Management",
+      "type": "maturity",
+      "target": 3,
+      "color": "#dc2626",
+      "description": "Security incident detection, response, and recovery",
+      "category": "Support"
+    },
+    "processImprovement": {
+      "name": "Process Improvement",
+      "type": "maturity",
+      "target": 3,
+      "color": "#a855f7",
+      "description": "Continuous improvement of security processes",
+      "category": "Process Management"
+    },
+    "training": {
+      "name": "Security Training",
+      "type": "maturity",
+      "target": 3,
+      "color": "#0ea5e9",
+      "description": "Security awareness and skills training program",
+      "category": "Support"
+    },
+    "measurement": {
+      "name": "Security Metrics",
+      "type": "maturity",
+      "target": 4,
+      "color": "#6366f1",
+      "description": "Security metrics collection, analysis, and reporting",
+      "category": "Process Management"
+    },
+    "governance": {
+      "name": "Security Governance",
+      "type": "maturity",
+      "target": 3,
+      "color": "#64748b",
+      "description": "Security policies, standards, and governance framework",
+      "category": "Process Management"
+    }
+  },
+  "practiceOrder": [
+    "secureSDLC",
+    "requirementsManagement",
+    "technicalSolution",
+    "verification",
+    "validation",
+    "configurationManagement",
+    "qualityAssurance",
+    "riskManagement",
+    "supplierManagement",
+    "incidentManagement",
+    "processImprovement",
+    "training",
+    "measurement",
+    "governance"
+  ],
+  "maturityScale": [
+    { "level": -1, "label": "N/A", "short": "N/A", "description": "Not applicable to this team" },
+    { "level": 0, "label": "Incomplete", "short": "0", "description": "Process not performed or partially performed" },
+    { "level": 1, "label": "Initial", "short": "1", "description": "Process is ad-hoc and chaotic. Success depends on individual effort." },
+    { "level": 2, "label": "Managed", "short": "2", "description": "Process is planned, performed, monitored, and controlled at project level." },
+    { "level": 3, "label": "Defined", "short": "3", "description": "Process is well characterized, understood, and described in standards and procedures." },
+    { "level": 4, "label": "Quantitatively Managed", "short": "4", "description": "Process is controlled using statistical and quantitative techniques." },
+    { "level": 5, "label": "Optimizing", "short": "5", "description": "Process is continuously improved based on quantitative understanding." }
+  ],
+  "ragColors": {
+    "green": { "hex": "#059669", "label": "Mature" },
+    "amber": { "hex": "#d97706", "label": "Developing" },
+    "red": { "hex": "#dc2626", "label": "Initial" },
+    "none": { "hex": "#64748b", "label": "Not Assessed" }
+  },
+  "teamTypes": [
+    { "id": "squad", "label": "Squad" },
+    { "id": "team", "label": "Team" },
+    { "id": "department", "label": "Department" },
+    { "id": "division", "label": "Division" },
+    { "id": "organization", "label": "Organization" }
+  ],
+  "thresholds": {
+    "bu": {
+      "green": 2.5,
+      "amber": 1.5
+    },
+    "team": {
+      "green": 0.70,
+      "amber": 0.35
+    }
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "id": "default",
+  "name": "Default Security Dashboard",
+  "description": "A general-purpose security practices dashboard with common security practices and maturity levels.",
+  "version": "1.0",
+  "practices": {
+    "secureCoding": {
+      "name": "Secure Coding",
+      "type": "maturity",
+      "target": 3,
+      "color": "#8b5cf6",
+      "description": "Secure coding practices and code review processes"
+    },
+    "threatModeling": {
+      "name": "Threat Modeling",
+      "type": "maturity",
+      "target": 3,
+      "color": "#f97316",
+      "description": "Regular threat modeling exercises for systems and features"
+    },
+    "securityTesting": {
+      "name": "Security Testing",
+      "type": "maturity",
+      "target": 3,
+      "color": "#06b6d4",
+      "description": "Automated and manual security testing coverage"
+    },
+    "vulnerabilityManagement": {
+      "name": "Vulnerability Management",
+      "type": "maturity",
+      "target": 3,
+      "color": "#ec4899",
+      "description": "Process for identifying, prioritizing, and remediating vulnerabilities"
+    },
+    "incidentResponse": {
+      "name": "Incident Response",
+      "type": "maturity",
+      "target": 3,
+      "color": "#ef4444",
+      "description": "Security incident detection and response capabilities"
+    },
+    "securityTraining": {
+      "name": "Security Training",
+      "type": "boolean",
+      "target": true,
+      "color": "#22c55e",
+      "description": "Team members have completed security awareness training"
+    },
+    "dependencyScanning": {
+      "name": "Dependency Scanning",
+      "type": "boolean",
+      "target": true,
+      "color": "#3b82f6",
+      "description": "Automated scanning of third-party dependencies for vulnerabilities"
+    },
+    "secretsManagement": {
+      "name": "Secrets Management",
+      "type": "boolean",
+      "target": true,
+      "color": "#a855f7",
+      "description": "Proper secrets management with no hardcoded credentials"
+    },
+    "accessControl": {
+      "name": "Access Control",
+      "type": "maturity",
+      "target": 3,
+      "color": "#14b8a6",
+      "description": "Role-based access control and least privilege principles"
+    },
+    "loggingMonitoring": {
+      "name": "Logging & Monitoring",
+      "type": "maturity",
+      "target": 3,
+      "color": "#f59e0b",
+      "description": "Security logging, monitoring, and alerting capabilities"
+    }
+  },
+  "practiceOrder": [
+    "secureCoding",
+    "threatModeling",
+    "securityTesting",
+    "vulnerabilityManagement",
+    "incidentResponse",
+    "securityTraining",
+    "dependencyScanning",
+    "secretsManagement",
+    "accessControl",
+    "loggingMonitoring"
+  ],
+  "maturityScale": [
+    { "level": -1, "label": "N/A", "short": "N/A", "description": "Not applicable to this team" },
+    { "level": 0, "label": "Not Started", "short": "0", "description": "Practice not yet initiated" },
+    { "level": 1, "label": "Initial", "short": "1", "description": "Ad-hoc, reactive approach with no formal process" },
+    { "level": 2, "label": "Developing", "short": "2", "description": "Basic process defined but inconsistently applied" },
+    { "level": 3, "label": "Defined", "short": "3", "description": "Standardized process consistently followed" },
+    { "level": 4, "label": "Managed", "short": "4", "description": "Process measured and continuously improved" }
+  ],
+  "ragColors": {
+    "green": { "hex": "#059669", "label": "Strong" },
+    "amber": { "hex": "#d97706", "label": "Developing" },
+    "red": { "hex": "#dc2626", "label": "Early Stage" },
+    "none": { "hex": "#64748b", "label": "Not Tracked" }
+  },
+  "teamTypes": [
+    { "id": "squad", "label": "Squad" },
+    { "id": "tribe", "label": "Tribe" },
+    { "id": "team", "label": "Team" },
+    { "id": "platform", "label": "Platform Team" }
+  ],
+  "thresholds": {
+    "bu": {
+      "green": 2.5,
+      "amber": 1.5
+    },
+    "team": {
+      "green": 0.75,
+      "amber": 0.4
+    }
+  }
+}
