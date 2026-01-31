@@ -3,7 +3,7 @@ import {
   Shield, Plus, Trash2, Download, Upload,
   Calendar, Users, ChevronRight, RotateCcw,
   Info, ArrowUpRight, ArrowDownRight, Minus,
-  Settings, X, Target, Check
+  Settings, X, Target, Check, Sun, Moon
 } from 'lucide-react';
 import { useStore } from './store/useStore';
 import {
@@ -110,24 +110,28 @@ function BooleanPill({ value, target, compact = false }) {
   );
 }
 
-// RAG background colors for cards
-const statusBg = {
-  green: 'bg-emerald-500',
-  amber: 'bg-amber-500',
-  red: 'bg-red-500',
+// Default RAG colors (fallback if store not loaded)
+const DEFAULT_STATUS_BG = {
+  green: 'bg-emerald-600',
+  amber: 'bg-amber-600',
+  red: 'bg-red-600',
 };
 
-const statusBgHover = {
-  green: 'hover:bg-emerald-600',
-  amber: 'hover:bg-amber-600',
-  red: 'hover:bg-red-600',
+const DEFAULT_STATUS_HOVER = {
+  green: 'hover:bg-emerald-700',
+  amber: 'hover:bg-amber-700',
+  red: 'hover:bg-red-700',
 };
 
-const statusLabels = {
-  green: 'Strong',
-  amber: 'Developing',
-  red: 'Early Stage',
-};
+// Helper to get status colors from ragColors
+function getStatusClasses(ragColors, status) {
+  const colors = ragColors?.[status];
+  return {
+    bg: colors?.bg || DEFAULT_STATUS_BG[status],
+    hover: colors?.hover || DEFAULT_STATUS_HOVER[status],
+    label: colors?.label || (status === 'green' ? 'Strong' : status === 'amber' ? 'Developing' : 'Early Stage'),
+  };
+}
 
 // Better trend config with colors and icons
 const trendConfig = {
@@ -184,10 +188,11 @@ function getNextMonthSuggestion(currentMonth) {
 }
 
 // Tooltip component for hover metadata
-function Tooltip({ squad, practices, children }) {
+function Tooltip({ squad, practices, ragColors, children }) {
   const [show, setShow] = useState(false);
   const { adopted, total } = getAdoptedCount(squad.practices, practices);
   const trend = trendConfig[squad.monthlyUpdate.trend];
+  const statusClasses = getStatusClasses(ragColors, squad.status || 'red');
 
   return (
     <div
@@ -202,7 +207,7 @@ function Tooltip({ squad, practices, children }) {
             <div className="flex justify-between items-center">
               <span className="text-slate-400">Status</span>
               <span className={`font-semibold ${squad.status === 'green' ? 'text-emerald-400' : squad.status === 'amber' ? 'text-amber-400' : 'text-red-400'}`}>
-                {statusLabels[squad.status || 'red']}
+                {statusClasses.label}
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -303,10 +308,27 @@ function Legend() {
           </div>
         </div>
         <div>
-          <p className="text-xs text-slate-400 mb-2">Practice Pills</p>
+          <p className="text-xs text-slate-400 mb-2">Card Pills</p>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-emerald-400" />
+              <span className="w-3 h-3 rounded-full bg-white/90" />
+              <span className="text-xs text-slate-300">At target</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-white/50" />
+              <span className="text-xs text-slate-300">Close</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-white/25" />
+              <span className="text-xs text-slate-300">Behind</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p className="text-xs text-slate-400 mb-2">Detail Pills</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-emerald-300" />
               <span className="text-xs text-slate-300">At target</span>
             </div>
             <div className="flex items-center gap-2">
@@ -314,21 +336,8 @@ function Legend() {
               <span className="text-xs text-slate-300">Close</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-slate-600" />
-              <span className="text-xs text-slate-300">Behind</span>
-            </div>
-          </div>
-        </div>
-        <div>
-          <p className="text-xs text-slate-400 mb-2">Target Indicator</p>
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-slate-600 ring-2 ring-white/50" />
               <span className="text-xs text-slate-300">Target level</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-emerald-300" />
-              <span className="text-xs text-slate-300">Target met</span>
             </div>
           </div>
         </div>
@@ -341,10 +350,18 @@ function Legend() {
 function SettingsModal({
   practices,
   maturityScale,
+  months,
+  currentMonth,
+  colorPreset,
+  colorPresets,
+  ragColors,
   onUpdatePractice,
   onAddPractice,
   onDeletePractice,
   onUpdateMaturityScale,
+  onDeleteMonth,
+  onSetColorPreset,
+  onUpdateRagLabel,
   onClose
 }) {
   const [newPracticeName, setNewPracticeName] = useState('');
@@ -357,6 +374,13 @@ function SettingsModal({
       setNewPracticeName('');
     }
   };
+
+  const tabs = [
+    { id: 'practices', label: 'Practices' },
+    { id: 'scale', label: 'Scale' },
+    { id: 'colors', label: 'Colors' },
+    { id: 'months', label: 'Months' },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -371,26 +395,19 @@ function SettingsModal({
 
         {/* Tabs */}
         <div className="flex border-b border-slate-700">
-          <button
-            onClick={() => setActiveTab('practices')}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'practices'
-                ? 'text-cyber-400 border-b-2 border-cyber-400'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Practices
-          </button>
-          <button
-            onClick={() => setActiveTab('scale')}
-            className={`px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === 'scale'
-                ? 'text-cyber-400 border-b-2 border-cyber-400'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Maturity Scale
-          </button>
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'text-cyber-400 border-b-2 border-cyber-400'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Content */}
@@ -548,6 +565,104 @@ function SettingsModal({
               </div>
             </div>
           )}
+
+          {activeTab === 'colors' && (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-400">
+                Choose a color theme for status cards. You can also customize the status labels.
+              </p>
+
+              {/* Color Presets */}
+              <div>
+                <h3 className="text-sm font-medium text-slate-300 mb-3">Color Theme</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {Object.entries(colorPresets).map(([name, preset]) => (
+                    <button
+                      key={name}
+                      onClick={() => onSetColorPreset(name)}
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        colorPreset === name
+                          ? 'border-cyber-500 bg-slate-800/50'
+                          : 'border-slate-700 hover:border-slate-600'
+                      }`}
+                    >
+                      <div className="flex gap-2 mb-2">
+                        <div className={`w-6 h-6 rounded ${preset.green.bg}`} />
+                        <div className={`w-6 h-6 rounded ${preset.amber.bg}`} />
+                        <div className={`w-6 h-6 rounded ${preset.red.bg}`} />
+                      </div>
+                      <span className="text-xs text-slate-400 capitalize">{name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status Labels */}
+              <div>
+                <h3 className="text-sm font-medium text-slate-300 mb-3">Status Labels</h3>
+                <div className="space-y-2">
+                  {['green', 'amber', 'red'].map((status) => (
+                    <div key={status} className="flex items-center gap-3 bg-slate-800/30 rounded-lg p-3">
+                      <div className={`w-4 h-4 rounded ${ragColors[status]?.bg || 'bg-slate-500'}`} />
+                      <input
+                        type="text"
+                        value={ragColors[status]?.label || ''}
+                        onChange={(e) => onUpdateRagLabel(status, e.target.value)}
+                        placeholder={`${status} label...`}
+                        className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm focus:border-cyber-500 outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'months' && (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-400">
+                Manage reporting periods. You cannot delete the current month or the last remaining month.
+              </p>
+
+              <div className="space-y-2">
+                {months.map((month) => {
+                  const isCurrent = month === currentMonth;
+                  const isLast = months.length === 1;
+                  const canDelete = !isCurrent && !isLast;
+
+                  return (
+                    <div key={month} className="flex items-center justify-between bg-slate-800/30 rounded-lg p-3">
+                      <div className="flex items-center gap-3">
+                        <Calendar className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm">{month}</span>
+                        {isCurrent && (
+                          <span className="text-xs bg-cyber-500/20 text-cyber-400 px-2 py-0.5 rounded">
+                            Current
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (canDelete && confirm(`Delete ${month}? This cannot be undone.`)) {
+                            onDeleteMonth(month);
+                          }
+                        }}
+                        disabled={!canDelete}
+                        className={`p-1.5 rounded ${
+                          canDelete
+                            ? 'hover:bg-red-900/50 text-slate-400 hover:text-red-400'
+                            : 'text-slate-600 cursor-not-allowed'
+                        }`}
+                        title={isCurrent ? "Can't delete current month" : isLast ? "Can't delete last month" : 'Delete month'}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -658,14 +773,22 @@ export default function App() {
               </div>
             </button>
 
-            {/* Center section - Toggle (grows to fill space, centered) */}
-            <div className="flex-1 flex justify-center">
+            {/* Center section - Toggles (grows to fill space, centered) */}
+            <div className="flex-1 flex justify-center items-center gap-4">
               <ToggleSwitch
                 checked={editMode}
                 onChange={setEditMode}
                 labelLeft="View"
                 labelRight="Edit"
               />
+              <div className="w-px h-5 bg-slate-700" />
+              <button
+                onClick={() => store.setDarkMode(!store.darkMode)}
+                className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded transition-colors"
+                title={store.darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                {store.darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
             </div>
 
             {/* Right section - Actions (fixed width) */}
@@ -743,10 +866,18 @@ export default function App() {
         <SettingsModal
           practices={store.practices}
           maturityScale={store.maturityScale}
+          months={store.months}
+          currentMonth={store.currentMonth}
+          colorPreset={store.colorPreset}
+          colorPresets={store.colorPresets}
+          ragColors={store.ragColors}
           onUpdatePractice={store.updatePractice}
           onAddPractice={store.addPractice}
           onDeletePractice={store.deletePractice}
           onUpdateMaturityScale={store.updateMaturityScale}
+          onDeleteMonth={store.deleteMonth}
+          onSetColorPreset={store.setColorPreset}
+          onUpdateRagLabel={store.updateRagLabel}
           onClose={() => setShowSettings(false)}
         />
       )}
@@ -835,21 +966,25 @@ export default function App() {
                   />
                 )}
               </h2>
-              {editMode ? (
-                <EditableSelect
-                  value={currentSquad.status || 'red'}
-                  onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'status', v)}
-                  options={[
-                    { value: 'green', label: '🟢 Green - Strong' },
-                    { value: 'amber', label: '🟡 Amber - Developing' },
-                    { value: 'red', label: '🔴 Red - Early Stage' },
-                  ]}
-                />
-              ) : (
-                <div className={`px-4 py-2 rounded-lg text-sm font-medium ${statusBg[currentSquad.status || 'red']}`}>
-                  {statusLabels[currentSquad.status || 'red']}
-                </div>
-              )}
+              {(() => {
+                const squadStatus = currentSquad.status || 'red';
+                const sc = getStatusClasses(store.ragColors, squadStatus);
+                return editMode ? (
+                  <EditableSelect
+                    value={squadStatus}
+                    onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'status', v)}
+                    options={[
+                      { value: 'green', label: `🟢 ${store.ragColors?.green?.label || 'Strong'}` },
+                      { value: 'amber', label: `🟡 ${store.ragColors?.amber?.label || 'Developing'}` },
+                      { value: 'red', label: `🔴 ${store.ragColors?.red?.label || 'Early Stage'}` },
+                    ]}
+                  />
+                ) : (
+                  <div className={`px-4 py-2 rounded-lg text-sm font-medium ${sc.bg}`}>
+                    {sc.label}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Practices */}
@@ -1041,23 +1176,24 @@ export default function App() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {currentBU.squads.map((squad) => {
                 const status = squad.status || 'red';
+                const statusClasses = getStatusClasses(store.ragColors, status);
                 const { adopted, total, meetsTarget } = getAdoptedCount(squad.practices, store.practices);
                 const trend = trendConfig[squad.monthlyUpdate.trend];
                 return (
-                  <Tooltip key={squad.id} squad={squad} practices={store.practices}>
+                  <Tooltip key={squad.id} squad={squad} practices={store.practices} ragColors={store.ragColors}>
                     <div
                       onClick={() => setSelectedSquad(squad.id)}
-                      className={`${statusBg[status]} ${statusBgHover[status]} rounded-xl p-5 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
+                      className={`${statusClasses.bg} ${statusClasses.hover} rounded-xl p-5 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
                     >
                       {/* Card Header */}
                       <div className="flex items-start justify-between mb-3">
                         <h3 className="font-bold text-white text-lg leading-tight">{squad.name}</h3>
-                        <div className={`p-1.5 rounded-full ${trend.bgColor}`}>
-                          <trend.Icon className={`w-4 h-4 ${trend.color}`} />
+                        <div className="p-1.5 rounded-full bg-white/20">
+                          <trend.Icon className="w-4 h-4 text-white" />
                         </div>
                       </div>
 
-                      {/* Pills Summary Row */}
+                      {/* Pills Summary Row - white-based for contrast */}
                       <div className="flex flex-wrap gap-1.5 mb-4">
                         {Object.entries(store.practices).map(([key, def]) => {
                           const value = squad.practices[key];
@@ -1067,7 +1203,7 @@ export default function App() {
                               <div
                                 key={key}
                                 className={`w-3 h-3 rounded-full ${
-                                  value ? 'bg-emerald-300' : 'bg-white/20'
+                                  value ? 'bg-white/90' : 'bg-white/25'
                                 }`}
                                 title={`${def.name}: ${value ? 'Yes' : 'No'}`}
                               />
@@ -1079,7 +1215,7 @@ export default function App() {
                             <div
                               key={key}
                               className={`w-3 h-3 rounded-full ${
-                                met ? 'bg-emerald-300' : close ? 'bg-amber-300' : 'bg-white/20'
+                                met ? 'bg-white/90' : close ? 'bg-white/50' : 'bg-white/25'
                               }`}
                               title={`${def.name}: ${value}/${target}`}
                             />
@@ -1104,7 +1240,7 @@ export default function App() {
                       {/* Footer */}
                       <div className="flex items-center justify-between pt-3 border-t border-white/20">
                         <span className="text-white/70 text-sm">{trend.label}</span>
-                        <span className="text-white/50 text-xs">{statusLabels[status]}</span>
+                        <span className="text-white/50 text-xs">{statusClasses.label}</span>
                       </div>
                     </div>
                   </Tooltip>
@@ -1155,6 +1291,7 @@ export default function App() {
                 const hasRed = squadStatuses.includes('red');
                 const hasAmber = squadStatuses.includes('amber');
                 const dominantStatus = hasRed ? 'red' : hasAmber ? 'amber' : 'green';
+                const statusClasses = getStatusClasses(store.ragColors, dominantStatus);
 
                 const totalAdopted = bu.squads.reduce((sum, s) => {
                   return sum + getAdoptedCount(s.practices, store.practices).adopted;
@@ -1167,11 +1304,15 @@ export default function App() {
                 const amberCount = squadStatuses.filter((s) => s === 'amber').length;
                 const redCount = squadStatuses.filter((s) => s === 'red').length;
 
+                const greenLabel = store.ragColors?.green?.label || 'strong';
+                const amberLabel = store.ragColors?.amber?.label || 'developing';
+                const redLabel = store.ragColors?.red?.label || 'early';
+
                 return (
                   <div
                     key={bu.id}
                     onClick={() => setSelectedBU(bu.id)}
-                    className={`${statusBg[dominantStatus]} ${statusBgHover[dominantStatus]} rounded-xl p-6 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
+                    className={`${statusClasses.bg} ${statusClasses.hover} rounded-xl p-6 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
                   >
                     {/* Card Header */}
                     <h3 className="text-xl font-bold text-white mb-4">{bu.name}</h3>
@@ -1188,27 +1329,27 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Status Distribution */}
+                    {/* Status Distribution - white-based dots for contrast */}
                     <div className="flex gap-4 pt-4 border-t border-white/20">
                       {greenCount > 0 && (
                         <div className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-emerald-300" />
+                          <span className="w-3 h-3 rounded-full bg-white/90" />
                           <span className="text-white font-bold">{greenCount}</span>
-                          <span className="text-white/50 text-xs">strong</span>
+                          <span className="text-white/50 text-xs">{greenLabel.toLowerCase()}</span>
                         </div>
                       )}
                       {amberCount > 0 && (
                         <div className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-amber-300" />
+                          <span className="w-3 h-3 rounded-full bg-white/60" />
                           <span className="text-white font-bold">{amberCount}</span>
-                          <span className="text-white/50 text-xs">developing</span>
+                          <span className="text-white/50 text-xs">{amberLabel.toLowerCase()}</span>
                         </div>
                       )}
                       {redCount > 0 && (
                         <div className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-red-300" />
+                          <span className="w-3 h-3 rounded-full bg-white/30" />
                           <span className="text-white font-bold">{redCount}</span>
-                          <span className="text-white/50 text-xs">early</span>
+                          <span className="text-white/50 text-xs">{redLabel.toLowerCase()}</span>
                         </div>
                       )}
                     </div>

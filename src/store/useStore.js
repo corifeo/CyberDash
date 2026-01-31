@@ -9,6 +9,37 @@ const DEFAULT_MATURITY_SCALE = [
   { level: 4, label: "Managed", short: "4" },
 ];
 
+// Default RAG color schemes
+const DEFAULT_RAG_COLORS = {
+  green: { bg: 'bg-emerald-600', hover: 'hover:bg-emerald-700', label: 'Strong' },
+  amber: { bg: 'bg-amber-600', hover: 'hover:bg-amber-700', label: 'Developing' },
+  red: { bg: 'bg-red-600', hover: 'hover:bg-red-700', label: 'Early Stage' },
+};
+
+// Available color presets
+const COLOR_PRESETS = {
+  default: {
+    green: { bg: 'bg-emerald-600', hover: 'hover:bg-emerald-700' },
+    amber: { bg: 'bg-amber-600', hover: 'hover:bg-amber-700' },
+    red: { bg: 'bg-red-600', hover: 'hover:bg-red-700' },
+  },
+  muted: {
+    green: { bg: 'bg-teal-700', hover: 'hover:bg-teal-800' },
+    amber: { bg: 'bg-yellow-700', hover: 'hover:bg-yellow-800' },
+    red: { bg: 'bg-rose-700', hover: 'hover:bg-rose-800' },
+  },
+  vibrant: {
+    green: { bg: 'bg-green-500', hover: 'hover:bg-green-600' },
+    amber: { bg: 'bg-orange-500', hover: 'hover:bg-orange-600' },
+    red: { bg: 'bg-red-500', hover: 'hover:bg-red-600' },
+  },
+  corporate: {
+    green: { bg: 'bg-cyan-700', hover: 'hover:bg-cyan-800' },
+    amber: { bg: 'bg-slate-500', hover: 'hover:bg-slate-600' },
+    red: { bg: 'bg-indigo-700', hover: 'hover:bg-indigo-800' },
+  },
+};
+
 // Default practice definitions with targets
 const DEFAULT_PRACTICES = {
   embeddedSecurityExperts: { name: "Security Experts", type: "boolean", target: true },
@@ -28,6 +59,9 @@ const DEFAULT_DATA = {
   currentMonth: "2025-01",
   maturityScale: DEFAULT_MATURITY_SCALE,
   practices: DEFAULT_PRACTICES,
+  ragColors: DEFAULT_RAG_COLORS,
+  darkMode: true, // Default to dark mode
+  colorPreset: 'default',
   months: {
     "2025-01": {
       reportingPeriod: "January 2025",
@@ -333,15 +367,68 @@ export function useStore() {
     });
   }, []);
 
+  // Delete a month
+  const deleteMonth = useCallback((monthKey) => {
+    setData((prev) => {
+      // Don't delete if it's the only month or current month
+      const monthKeys = Object.keys(prev.months);
+      if (monthKeys.length <= 1) return prev;
+      if (monthKey === prev.currentMonth) return prev;
+
+      const newData = JSON.parse(JSON.stringify(prev));
+      delete newData.months[monthKey];
+      return newData;
+    });
+  }, []);
+
+  // Toggle dark mode
+  const setDarkMode = useCallback((enabled) => {
+    setData((prev) => ({ ...prev, darkMode: enabled }));
+  }, []);
+
+  // Set color preset
+  const setColorPreset = useCallback((presetName) => {
+    setData((prev) => {
+      const preset = COLOR_PRESETS[presetName];
+      if (!preset) return prev;
+      return {
+        ...prev,
+        colorPreset: presetName,
+        ragColors: {
+          green: { ...preset.green, label: prev.ragColors?.green?.label || 'Strong' },
+          amber: { ...preset.amber, label: prev.ragColors?.amber?.label || 'Developing' },
+          red: { ...preset.red, label: prev.ragColors?.red?.label || 'Early Stage' },
+        },
+      };
+    });
+  }, []);
+
+  // Update RAG label
+  const updateRagLabel = useCallback((status, label) => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData.ragColors) newData.ragColors = DEFAULT_RAG_COLORS;
+      if (newData.ragColors[status]) {
+        newData.ragColors[status].label = label;
+      }
+      return newData;
+    });
+  }, []);
+
   return {
     data,
     currentMonth: data.currentMonth,
     currentMonthData,
     practices: data.practices,
     maturityScale: data.maturityScale || DEFAULT_MATURITY_SCALE,
+    ragColors: data.ragColors || DEFAULT_RAG_COLORS,
+    darkMode: data.darkMode !== false, // Default to true
+    colorPreset: data.colorPreset || 'default',
+    colorPresets: COLOR_PRESETS,
     months: Object.keys(data.months).sort().reverse(),
     setCurrentMonth,
     createNewMonth,
+    deleteMonth,
     updateSquad,
     updateBusinessUnit,
     addBusinessUnit,
@@ -355,6 +442,9 @@ export function useStore() {
     addPractice,
     deletePractice,
     updateMaturityScale,
+    setDarkMode,
+    setColorPreset,
+    updateRagLabel,
   };
 }
 
