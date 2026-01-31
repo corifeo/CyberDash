@@ -68,12 +68,13 @@ export function getAdoptedCount(practices, definitions) {
 
 // Calculate practice adoption across all squads in a BU
 export function getPracticeAdoption(squads, definitions) {
+  const trackedSquads = squads.filter(s => s.tracked !== false);
   const result = {};
   Object.entries(definitions).forEach(([practiceId, def]) => {
     let adopted = 0, partial = 0, notAdopted = 0, na = 0;
     const target = def.target || (def.type === 'boolean' ? true : 3);
 
-    squads.forEach((squad) => {
+    trackedSquads.forEach((squad) => {
       const value = squad.practices?.[practiceId];
       if (def.type === 'boolean') {
         if (value === 'na') na++;
@@ -87,7 +88,7 @@ export function getPracticeAdoption(squads, definitions) {
       }
     });
 
-    const total = squads.length - na;
+    const total = trackedSquads.length - na;
     result[practiceId] = { adopted, partial, notAdopted, na, total };
   });
   return result;
