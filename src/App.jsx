@@ -682,21 +682,19 @@ export default function App() {
                     <option key={m} value={m}>{m}</option>
                   ))}
                 </select>
-                {editMode && (
-                  <button
-                    onClick={openNewMonthModal}
-                    className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded"
-                    title="New Month"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                )}
+                <button
+                  onClick={openNewMonthModal}
+                  className={`p-1.5 bg-slate-800 hover:bg-slate-700 rounded ${!editMode ? 'invisible' : ''}`}
+                  title="New Month"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
               </div>
 
               {/* Divider */}
               <div className="w-px h-6 bg-slate-700 mx-1" />
 
-              {/* Action buttons */}
+              {/* Action buttons - always rendered, some invisible in view mode */}
               <button
                 onClick={store.exportData}
                 className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded"
@@ -705,40 +703,36 @@ export default function App() {
                 <Download className="w-4 h-4" />
               </button>
 
-              {editMode && (
-                <>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".json"
-                    onChange={handleImport}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded"
-                    title="Import"
-                  >
-                    <Upload className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setShowSettings(true)}
-                    className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded"
-                    title="Settings"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm('Reset all data to defaults?')) store.resetData();
-                    }}
-                    className="p-1.5 bg-slate-800 hover:bg-red-900 rounded"
-                    title="Reset"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-                </>
-              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleImport}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className={`p-1.5 bg-slate-800 hover:bg-slate-700 rounded ${!editMode ? 'invisible' : ''}`}
+                title="Import"
+              >
+                <Upload className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowSettings(true)}
+                className={`p-1.5 bg-slate-800 hover:bg-slate-700 rounded ${!editMode ? 'invisible' : ''}`}
+                title="Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm('Reset all data to defaults?')) store.resetData();
+                }}
+                className={`p-1.5 bg-slate-800 hover:bg-red-900 rounded ${!editMode ? 'invisible' : ''}`}
+                title="Reset"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </div>
