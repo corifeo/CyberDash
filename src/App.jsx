@@ -23,6 +23,14 @@ import {
   Legend,
 } from './components/Dashboard';
 
+// Default hex colors for status (used in settings modal)
+const DEFAULT_HEX_COLORS = {
+  green: '#059669',
+  amber: '#d97706',
+  red: '#dc2626',
+  none: '#64748b',
+};
+
 // Get status color based on current vs target
 function getMaturityStatus(current, target, type) {
   if (type === 'boolean') {
