@@ -4,7 +4,7 @@ import {
   Calendar, Users, ChevronRight, RotateCcw,
   Info, ArrowUpRight, ArrowDownRight, Minus,
   Settings, X, Target, Check, Sun, Moon,
-  ChevronUp, ChevronDown, Eye, EyeOff, Scale
+  ChevronUp, ChevronDown, Eye, EyeOff, Scale, Star
 } from 'lucide-react';
 import { useStore } from './store/useStore';
 import {
@@ -237,6 +237,16 @@ function Tooltip({ squad, practices, ragColors, children }) {
   const trend = trendConfig[squad.monthlyUpdate.trend];
   const statusInfo = getStatusInfo(ragColors, squad.status || 'red');
 
+  // Get important practices and their values
+  const importantPractices = Object.entries(practices)
+    .filter(([_, def]) => def.important)
+    .map(([id, def]) => {
+      const value = squad.practices[id];
+      const target = def.target || 3;
+      const adopted = def.type === 'boolean' ? value === true : (value || 0) >= target;
+      return { id, name: def.name, type: def.type, value, target, adopted };
+    });
+
   return (
     <div
       className="relative"
@@ -264,10 +274,24 @@ function Tooltip({ squad, practices, ragColors, children }) {
                 {trend.label}
               </span>
             </div>
-            {squad.monthlyUpdate.keyMetric.label && (
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400">{squad.monthlyUpdate.keyMetric.label}</span>
-                <span className="text-cyber-400 font-medium">{squad.monthlyUpdate.keyMetric.value}</span>
+            {importantPractices.length > 0 && (
+              <div className="pt-2 border-t border-slate-700">
+                <p className="text-slate-400 text-xs mb-2 flex items-center gap-1">
+                  <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                  Key Practices:
+                </p>
+                <div className="space-y-1">
+                  {importantPractices.map((p) => (
+                    <div key={p.id} className="flex justify-between items-center text-xs">
+                      <span className="text-slate-300">{p.name}</span>
+                      <span className={p.adopted ? 'text-green-400' : 'text-red-400'}>
+                        {p.type === 'boolean'
+                          ? (p.value ? 'Yes' : 'No')
+                          : `${p.value || 0}/${p.target}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             {squad.monthlyUpdate.summary && (
@@ -601,6 +625,18 @@ function SettingsModal({
                         onChange={(e) => onUpdatePractice(practice.id, 'name', e.target.value)}
                         className={`flex-1 ${st.input} border rounded px-3 py-1.5 text-sm focus:border-cyber-500 outline-none`}
                       />
+                      {/* Important toggle - shows in mouseover */}
+                      <button
+                        onClick={() => onUpdatePractice(practice.id, 'important', !practice.important)}
+                        className={`p-1.5 rounded transition-colors ${
+                          practice.important
+                            ? 'text-amber-400'
+                            : `${st.textDim} hover:text-amber-400`
+                        }`}
+                        title={practice.important ? 'Remove from summary' : 'Show in summary'}
+                      >
+                        <Star className={`w-4 h-4 ${practice.important ? 'fill-amber-400' : ''}`} />
+                      </button>
                       {practice.type === 'maturity' ? (
                         <div className="flex items-center gap-2">
                           <Target className={`w-4 h-4 ${st.textHint}`} />
@@ -636,7 +672,7 @@ function SettingsModal({
 
               {/* Legend */}
               <div className={`pt-4 border-t ${st.border}`}>
-                <div className={`flex items-center gap-6 text-xs ${st.textHint}`}>
+                <div className={`flex flex-wrap items-center gap-x-6 gap-y-2 text-xs ${st.textHint}`}>
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-cyan-500" />
                     Boolean (Yes/No)
@@ -648,6 +684,10 @@ function SettingsModal({
                   <div className="flex items-center gap-2">
                     <Target className="w-3 h-3" />
                     Target level
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
+                    Shows in summary
                   </div>
                 </div>
               </div>
@@ -1096,10 +1136,10 @@ export default function App() {
               </button>
               <button
                 onClick={() => {
-                  if (confirm('Reset all data to defaults?')) store.resetData();
+                  if (confirm('Reset current month to previous period data?')) store.resetToLastPeriod();
                 }}
                 className={`p-1.5 ${theme.mutedBg} hover:bg-red-900 rounded ${!editMode ? 'invisible' : ''}`}
-                title="Reset"
+                title="Reset to previous period"
               >
                 <RotateCcw className="w-4 h-4" />
               </button>
@@ -1245,41 +1285,40 @@ export default function App() {
               })()}
             </div>
 
-            {/* Squad Settings - Tracked & Weight */}
-            <div className={`${theme.cardAlt} rounded-lg p-4`}>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                {/* Tracked Toggle */}
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => editMode && store.updateSquad(currentBU.id, currentSquad.id, 'tracked', !currentSquad.tracked)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
-                      currentSquad.tracked !== false
-                        ? 'bg-cyber-500/20 text-cyber-400'
-                        : `${theme.card} ${theme.muted}`
-                    } ${editMode ? 'cursor-pointer hover:opacity-80' : ''}`}
-                    disabled={!editMode}
-                  >
-                    {currentSquad.tracked !== false ? (
-                      <Eye className="w-4 h-4" />
-                    ) : (
-                      <EyeOff className="w-4 h-4" />
-                    )}
-                    <span className="text-sm font-medium">
-                      {currentSquad.tracked !== false ? 'Tracked' : 'Untracked'}
+            {/* Squad Settings - Tracked & Weight (Edit mode only) */}
+            {editMode && (
+              <div className={`${theme.cardAlt} rounded-lg p-4`}>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  {/* Tracked Toggle */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => store.updateSquad(currentBU.id, currentSquad.id, 'tracked', currentSquad.tracked === false)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors cursor-pointer hover:opacity-80 ${
+                        currentSquad.tracked !== false
+                          ? 'bg-cyber-500/20 text-cyber-400'
+                          : `${theme.card} ${theme.muted}`
+                      }`}
+                    >
+                      {currentSquad.tracked !== false ? (
+                        <Eye className="w-4 h-4" />
+                      ) : (
+                        <EyeOff className="w-4 h-4" />
+                      )}
+                      <span className="text-sm font-medium">
+                        {currentSquad.tracked !== false ? 'Tracked' : 'Untracked'}
+                      </span>
+                    </button>
+                    <span className={`text-xs ${theme.muted}`}>
+                      {currentSquad.tracked !== false
+                        ? 'Counts toward BU status'
+                        : "Doesn't impact BU status"}
                     </span>
-                  </button>
-                  <span className={`text-xs ${theme.muted}`}>
-                    {currentSquad.tracked !== false
-                      ? 'Counts toward BU status'
-                      : "Doesn't impact BU status"}
-                  </span>
-                </div>
+                  </div>
 
-                {/* Weight */}
-                <div className="flex items-center gap-3">
-                  <Scale className={`w-4 h-4 ${theme.muted}`} />
-                  <span className={`text-sm ${theme.muted}`}>Weight:</span>
-                  {editMode ? (
+                  {/* Weight */}
+                  <div className="flex items-center gap-3">
+                    <Scale className={`w-4 h-4 ${theme.muted}`} />
+                    <span className={`text-sm ${theme.muted}`}>Weight:</span>
                     <input
                       type="number"
                       min="0.1"
@@ -1289,15 +1328,13 @@ export default function App() {
                       onChange={(e) => store.updateSquad(currentBU.id, currentSquad.id, 'weight', parseFloat(e.target.value) || 1)}
                       className={`w-16 ${theme.input} border rounded px-2 py-1 text-sm text-center`}
                     />
-                  ) : (
-                    <span className="font-mono text-sm">{currentSquad.weight || 1}</span>
-                  )}
-                  <span className={`text-xs ${theme.muted}`}>
-                    (relative importance)
-                  </span>
+                    <span className={`text-xs ${theme.muted}`}>
+                      (relative importance)
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Practices */}
             <div className={`${theme.card} border rounded-xl p-5`}>
@@ -1571,12 +1608,19 @@ export default function App() {
                 const dominantStatus = getWeightedBuStatus(bu.squads);
                 const statusInfo = getStatusInfo(store.ragColors, dominantStatus);
 
-                const totalAdopted = bu.squads.reduce((sum, s) => {
-                  return sum + getAdoptedCount(s.practices, store.practices).adopted;
-                }, 0);
-                const totalPractices = bu.squads.reduce((sum, s) => {
-                  return sum + getAdoptedCount(s.practices, store.practices).total;
-                }, 0);
+                // Calculate weighted average of adopted practices
+                const totalPracticesCount = Object.keys(store.practices).length;
+                let weightedAdoptedSum = 0;
+                let totalWeight = 0;
+                bu.squads.forEach((s) => {
+                  const weight = s.weight || 1;
+                  const { adopted } = getAdoptedCount(s.practices, store.practices);
+                  weightedAdoptedSum += adopted * weight;
+                  totalWeight += weight;
+                });
+                const weightedAdopted = totalWeight > 0
+                  ? (weightedAdoptedSum / totalWeight).toFixed(1).replace(/\.0$/, '')
+                  : 0;
 
                 const greenCount = squadStatuses.filter((s) => s === 'green').length;
                 const amberCount = squadStatuses.filter((s) => s === 'amber').length;
@@ -1605,7 +1649,7 @@ export default function App() {
                         <div className="text-white/50 text-sm mt-1">Squads</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-3xl font-bold text-white/90">{totalAdopted}<span className="text-lg text-white/50">/{totalPractices}</span></div>
+                        <div className="text-3xl font-bold text-white/90">{weightedAdopted}<span className="text-lg text-white/50">/{totalPracticesCount}</span></div>
                         <div className="text-white/50 text-sm">Practices</div>
                       </div>
                     </div>

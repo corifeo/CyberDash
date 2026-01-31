@@ -457,6 +457,35 @@ export function useStore() {
     setData(DEFAULT_DATA);
   }, []);
 
+  // Reset current month to previous period's data
+  const resetToLastPeriod = useCallback(() => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      const sortedMonths = Object.keys(newData.months).sort().reverse();
+      const currentIndex = sortedMonths.indexOf(newData.currentMonth);
+
+      // If no previous month exists, do nothing
+      if (currentIndex < 0 || currentIndex >= sortedMonths.length - 1) {
+        console.warn("No previous period to reset to");
+        return prev;
+      }
+
+      const previousMonth = sortedMonths[currentIndex + 1];
+      const previousData = newData.months[previousMonth];
+
+      // Deep clone the previous month's business units
+      const resetBusinessUnits = JSON.parse(JSON.stringify(previousData.businessUnits));
+
+      // Apply to current month, keeping the current reporting period label
+      newData.months[newData.currentMonth] = {
+        ...newData.months[newData.currentMonth],
+        businessUnits: resetBusinessUnits,
+      };
+
+      return newData;
+    });
+  }, []);
+
   // Update a practice definition
   const updatePractice = useCallback((practiceId, field, value) => {
     setData((prev) => {
@@ -643,6 +672,7 @@ export function useStore() {
     exportData, // Legacy
     importData, // Legacy
     resetData,
+    resetToLastPeriod,
     updatePractice,
     addPractice,
     deletePractice,
