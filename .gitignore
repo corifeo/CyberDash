@@ -26,3 +26,10 @@ yarn-error.log*
 # Cache
 .cache/
 *.tsbuildinfo
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Vite temp files
+vite.config.js.timestamp-*
