@@ -1,6 +1,6 @@
 {
   "type": "archive",
-  "description": "Test data with 4 BUs and 5-6 squads each, varying practice levels",
+  "description": "Test data with 4 BUs and 5-6 squads each, varying practice levels and trends",
   "currentMonth": "2025-01",
   "months": {
     "2024-12": {
@@ -29,7 +29,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-devex",
@@ -50,7 +50,7 @@
                 "incidentResponse": true,
                 "securityTesting": 1
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-data",
@@ -60,18 +60,18 @@
               "autoStatus": true,
               "weight": 1,
               "practices": {
-                "embeddedSecurityExperts": false,
-                "threatModeling": 2,
+                "embeddedSecurityExperts": true,
+                "threatModeling": 3,
                 "secureCodeReview": true,
-                "automatedSecurityTesting": 2,
-                "dependencyScanning": 1,
-                "secretsManagement": 2,
-                "securityRequirements": 1,
-                "vulnerabilityManagement": 1,
-                "incidentResponse": false,
-                "securityTesting": 1
+                "automatedSecurityTesting": 3,
+                "dependencyScanning": 2,
+                "secretsManagement": 3,
+                "securityRequirements": 2,
+                "vulnerabilityManagement": 2,
+                "incidentResponse": true,
+                "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-sre",
@@ -92,7 +92,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-security",
@@ -113,7 +113,7 @@
                 "incidentResponse": true,
                 "securityTesting": 4
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             }
           ]
         },
@@ -140,7 +140,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-fraud",
@@ -161,7 +161,7 @@
                 "incidentResponse": true,
                 "securityTesting": 3
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-billing",
@@ -171,18 +171,18 @@
               "autoStatus": true,
               "weight": 1,
               "practices": {
-                "embeddedSecurityExperts": false,
-                "threatModeling": 2,
+                "embeddedSecurityExperts": true,
+                "threatModeling": 3,
                 "secureCodeReview": true,
-                "automatedSecurityTesting": 2,
+                "automatedSecurityTesting": 3,
                 "dependencyScanning": 2,
-                "secretsManagement": 2,
-                "securityRequirements": 1,
+                "secretsManagement": 3,
+                "securityRequirements": 2,
                 "vulnerabilityManagement": 2,
                 "incidentResponse": true,
-                "securityTesting": 1
+                "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-subscriptions",
@@ -203,7 +203,7 @@
                 "incidentResponse": true,
                 "securityTesting": 1
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-payouts",
@@ -224,7 +224,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-refunds",
@@ -245,7 +245,7 @@
                 "incidentResponse": false,
                 "securityTesting": 0
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             }
           ]
         },
@@ -272,7 +272,7 @@
                 "incidentResponse": false,
                 "securityTesting": 1
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-search",
@@ -293,7 +293,7 @@
                 "incidentResponse": false,
                 "securityTesting": 0
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-inventory",
@@ -314,7 +314,7 @@
                 "incidentResponse": true,
                 "securityTesting": 1
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-orders",
@@ -335,7 +335,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-promotions",
@@ -356,7 +356,7 @@
                 "incidentResponse": false,
                 "securityTesting": 0
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             }
           ]
         },
@@ -383,7 +383,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-web",
@@ -404,7 +404,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-notifications",
@@ -425,7 +425,7 @@
                 "incidentResponse": false,
                 "securityTesting": 0
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-support",
@@ -446,7 +446,7 @@
                 "incidentResponse": true,
                 "securityTesting": 0
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-auth",
@@ -467,7 +467,7 @@
                 "incidentResponse": true,
                 "securityTesting": 3
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             },
             {
               "id": "team-profile",
@@ -488,7 +488,7 @@
                 "incidentResponse": false,
                 "securityTesting": 1
               },
-              "monthlyUpdate": { "summary": "", "nextPeriod": "", "trend": "stable" }
+              "monthlyUpdate": { "summary": "", "nextPeriod": "" }
             }
           ]
         }
@@ -520,7 +520,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "Improved dependency scanning to level 3", "nextPeriod": "Focus on vulnerability management", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Improved dependency scanning and vuln management", "nextPeriod": "Focus on security requirements" }
             },
             {
               "id": "team-devex",
@@ -541,7 +541,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "Improved automated security testing and security requirements", "nextPeriod": "Continue improving security testing", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Improved automated security testing and pen testing", "nextPeriod": "Continue improving" }
             },
             {
               "id": "team-data",
@@ -551,18 +551,18 @@
               "autoStatus": true,
               "weight": 1,
               "practices": {
-                "embeddedSecurityExperts": true,
+                "embeddedSecurityExperts": false,
                 "threatModeling": 2,
                 "secureCodeReview": true,
                 "automatedSecurityTesting": 2,
-                "dependencyScanning": 2,
+                "dependencyScanning": 1,
                 "secretsManagement": 2,
-                "securityRequirements": 2,
-                "vulnerabilityManagement": 2,
-                "incidentResponse": true,
+                "securityRequirements": 1,
+                "vulnerabilityManagement": 1,
+                "incidentResponse": false,
                 "securityTesting": 1
               },
-              "monthlyUpdate": { "summary": "Added security champion, improved incident response", "nextPeriod": "Focus on penetration testing", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Lost security champion, practices declining", "nextPeriod": "Urgent: assign new champion" }
             },
             {
               "id": "team-sre",
@@ -573,17 +573,17 @@
               "weight": 1,
               "practices": {
                 "embeddedSecurityExperts": true,
-                "threatModeling": 3,
+                "threatModeling": 2,
                 "secureCodeReview": true,
                 "automatedSecurityTesting": 3,
                 "dependencyScanning": 3,
                 "secretsManagement": 3,
-                "securityRequirements": 3,
+                "securityRequirements": 2,
                 "vulnerabilityManagement": 3,
                 "incidentResponse": true,
-                "securityTesting": 3
+                "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "Achieved level 3 across most practices", "nextPeriod": "Target level 4 for key practices", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Maintaining steady state", "nextPeriod": "Focus on threat modeling" }
             },
             {
               "id": "team-security",
@@ -604,7 +604,7 @@
                 "incidentResponse": true,
                 "securityTesting": 4
               },
-              "monthlyUpdate": { "summary": "Improved dependency scanning to level 4", "nextPeriod": "Help other teams improve", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Improved dependency scanning to level 4", "nextPeriod": "Help other teams improve" }
             }
           ]
         },
@@ -631,7 +631,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "Improved security requirements and vuln management", "nextPeriod": "Focus on pen testing", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Improved security requirements and vuln management", "nextPeriod": "Focus on pen testing" }
             },
             {
               "id": "team-fraud",
@@ -652,7 +652,7 @@
                 "incidentResponse": true,
                 "securityTesting": 3
               },
-              "monthlyUpdate": { "summary": "Improved automated testing and requirements", "nextPeriod": "Focus on dependency scanning", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Improved automated testing and requirements", "nextPeriod": "Focus on dependency scanning" }
             },
             {
               "id": "team-billing",
@@ -662,18 +662,18 @@
               "autoStatus": true,
               "weight": 1,
               "practices": {
-                "embeddedSecurityExperts": true,
+                "embeddedSecurityExperts": false,
                 "threatModeling": 2,
                 "secureCodeReview": true,
                 "automatedSecurityTesting": 2,
-                "dependencyScanning": 2,
+                "dependencyScanning": 1,
                 "secretsManagement": 2,
-                "securityRequirements": 2,
+                "securityRequirements": 1,
                 "vulnerabilityManagement": 2,
                 "incidentResponse": true,
-                "securityTesting": 2
+                "securityTesting": 1
               },
-              "monthlyUpdate": { "summary": "Added security champion, improved multiple areas", "nextPeriod": "Continue steady progress", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Lost champion, several practices declined", "nextPeriod": "Urgent: stabilize team" }
             },
             {
               "id": "team-subscriptions",
@@ -694,7 +694,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "Improved pen testing to level 2", "nextPeriod": "Focus on threat modeling", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Improved pen testing to level 2", "nextPeriod": "Focus on threat modeling" }
             },
             {
               "id": "team-payouts",
@@ -715,7 +715,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "Maintained steady state", "nextPeriod": "Focus on threat modeling", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Maintained steady state", "nextPeriod": "Focus on threat modeling" }
             },
             {
               "id": "team-refunds",
@@ -736,7 +736,7 @@
                 "incidentResponse": false,
                 "securityTesting": 0
               },
-              "monthlyUpdate": { "summary": "Team under restructuring", "nextPeriod": "Re-enable tracking when team stabilizes", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Team under restructuring", "nextPeriod": "Re-enable tracking when stable" }
             }
           ]
         },
@@ -747,48 +747,6 @@
             {
               "id": "team-catalog",
               "name": "Product Catalog",
-              "teamType": "squad",
-              "tracked": true,
-              "autoStatus": true,
-              "weight": 1,
-              "practices": {
-                "embeddedSecurityExperts": false,
-                "threatModeling": 2,
-                "secureCodeReview": true,
-                "automatedSecurityTesting": 2,
-                "dependencyScanning": 2,
-                "secretsManagement": 2,
-                "securityRequirements": 2,
-                "vulnerabilityManagement": 2,
-                "incidentResponse": true,
-                "securityTesting": 1
-              },
-              "monthlyUpdate": { "summary": "Improved threat modeling and added incident response", "nextPeriod": "Assign security champion", "trend": "stable" }
-            },
-            {
-              "id": "team-search",
-              "name": "Search & Discovery",
-              "teamType": "squad",
-              "tracked": true,
-              "autoStatus": true,
-              "weight": 1,
-              "practices": {
-                "embeddedSecurityExperts": false,
-                "threatModeling": 1,
-                "secureCodeReview": true,
-                "automatedSecurityTesting": 2,
-                "dependencyScanning": 2,
-                "secretsManagement": 2,
-                "securityRequirements": 1,
-                "vulnerabilityManagement": 2,
-                "incidentResponse": false,
-                "securityTesting": 1
-              },
-              "monthlyUpdate": { "summary": "Improved automated testing and vuln management", "nextPeriod": "Focus on incident response", "trend": "stable" }
-            },
-            {
-              "id": "team-inventory",
-              "name": "Inventory",
               "teamType": "squad",
               "tracked": true,
               "autoStatus": true,
@@ -805,7 +763,49 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "Added security champion, improved pen testing", "nextPeriod": "Continue progress on threat modeling", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Major improvements: added champion, incident response", "nextPeriod": "Continue momentum" }
+            },
+            {
+              "id": "team-search",
+              "name": "Search & Discovery",
+              "teamType": "squad",
+              "tracked": true,
+              "autoStatus": true,
+              "weight": 1,
+              "practices": {
+                "embeddedSecurityExperts": false,
+                "threatModeling": 1,
+                "secureCodeReview": true,
+                "automatedSecurityTesting": 1,
+                "dependencyScanning": 2,
+                "secretsManagement": 1,
+                "securityRequirements": 1,
+                "vulnerabilityManagement": 1,
+                "incidentResponse": false,
+                "securityTesting": 0
+              },
+              "monthlyUpdate": { "summary": "No change this month", "nextPeriod": "Plan for improvements" }
+            },
+            {
+              "id": "team-inventory",
+              "name": "Inventory",
+              "teamType": "squad",
+              "tracked": true,
+              "autoStatus": true,
+              "weight": 1,
+              "practices": {
+                "embeddedSecurityExperts": false,
+                "threatModeling": 1,
+                "secureCodeReview": true,
+                "automatedSecurityTesting": 1,
+                "dependencyScanning": 1,
+                "secretsManagement": 2,
+                "securityRequirements": 1,
+                "vulnerabilityManagement": 1,
+                "incidentResponse": false,
+                "securityTesting": 1
+              },
+              "monthlyUpdate": { "summary": "Team restructure caused decline", "nextPeriod": "Rebuild security practices" }
             },
             {
               "id": "team-orders",
@@ -826,7 +826,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "Improved threat modeling to level 3", "nextPeriod": "Focus on automated testing", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Improved threat modeling to level 3", "nextPeriod": "Focus on automated testing" }
             },
             {
               "id": "team-promotions",
@@ -847,7 +847,7 @@
                 "incidentResponse": false,
                 "securityTesting": 1
               },
-              "monthlyUpdate": { "summary": "Added secure code review, improved testing", "nextPeriod": "Add security champion, incident response", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Added secure code review, improved testing", "nextPeriod": "Add security champion" }
             }
           ]
         },
@@ -866,7 +866,7 @@
                 "embeddedSecurityExperts": true,
                 "threatModeling": 2,
                 "secureCodeReview": true,
-                "automatedSecurityTesting": 3,
+                "automatedSecurityTesting": 2,
                 "dependencyScanning": 2,
                 "secretsManagement": 2,
                 "securityRequirements": 2,
@@ -874,7 +874,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "Improved automated security testing to level 3", "nextPeriod": "Focus on dependency scanning", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Maintaining steady state", "nextPeriod": "Focus on threat modeling" }
             },
             {
               "id": "team-web",
@@ -895,7 +895,7 @@
                 "incidentResponse": true,
                 "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "Improved security testing and requirements", "nextPeriod": "Focus on threat modeling", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Improved security testing and requirements", "nextPeriod": "Focus on threat modeling" }
             },
             {
               "id": "team-notifications",
@@ -916,7 +916,7 @@
                 "incidentResponse": true,
                 "securityTesting": 1
               },
-              "monthlyUpdate": { "summary": "Improved threat modeling, added incident response", "nextPeriod": "Assign security champion", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Good progress on threat modeling and incident response", "nextPeriod": "Assign security champion" }
             },
             {
               "id": "team-support",
@@ -927,17 +927,17 @@
               "weight": 1,
               "practices": {
                 "embeddedSecurityExperts": false,
-                "threatModeling": 2,
-                "secureCodeReview": true,
-                "automatedSecurityTesting": 2,
-                "dependencyScanning": 2,
-                "secretsManagement": 2,
-                "securityRequirements": 1,
-                "vulnerabilityManagement": 2,
-                "incidentResponse": true,
-                "securityTesting": 1
+                "threatModeling": 0,
+                "secureCodeReview": false,
+                "automatedSecurityTesting": 1,
+                "dependencyScanning": 1,
+                "secretsManagement": 1,
+                "securityRequirements": 0,
+                "vulnerabilityManagement": 0,
+                "incidentResponse": false,
+                "securityTesting": 0
               },
-              "monthlyUpdate": { "summary": "Improved threat modeling and multiple practices", "nextPeriod": "Focus on security requirements", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Major setback: lost key people", "nextPeriod": "Emergency recovery plan needed" }
             },
             {
               "id": "team-auth",
@@ -958,7 +958,7 @@
                 "incidentResponse": true,
                 "securityTesting": 3
               },
-              "monthlyUpdate": { "summary": "Maintained high security posture", "nextPeriod": "Target level 4 for critical practices", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Maintained high security posture", "nextPeriod": "Target level 4" }
             },
             {
               "id": "team-profile",
@@ -968,7 +968,7 @@
               "autoStatus": true,
               "weight": 1,
               "practices": {
-                "embeddedSecurityExperts": false,
+                "embeddedSecurityExperts": true,
                 "threatModeling": 2,
                 "secureCodeReview": true,
                 "automatedSecurityTesting": 2,
@@ -977,9 +977,9 @@
                 "securityRequirements": 2,
                 "vulnerabilityManagement": 2,
                 "incidentResponse": true,
-                "securityTesting": 1
+                "securityTesting": 2
               },
-              "monthlyUpdate": { "summary": "Improved threat modeling and added incident response", "nextPeriod": "Assign security champion", "trend": "stable" }
+              "monthlyUpdate": { "summary": "Good improvements across the board", "nextPeriod": "Continue progress" }
             }
           ]
         }

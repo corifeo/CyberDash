@@ -138,25 +138,56 @@ function getPracticeAdoption(squads, definitions) {
 
 // Calculate automatic RAG status for a team based on practice adoption
 // Returns 'green', 'amber', or 'red' based on percentage of practices at target
-// thresholds: { green: 75, amber: 40 } - percentage values
-function calculateAutoRagStatus(squad, practices, thresholds) {
+// thresholds: { green: 75, amber: 40, rule: 'percentage' } - percentage values and rule type
+// trend: optional trend for rule-based adjustments ('improving', 'stable', 'declining')
+function calculateAutoRagStatus(squad, practices, thresholds, trend = 'stable') {
   const { meetsTarget, total } = getAdoptedCount(squad.practices, practices);
   if (total === 0) return 'amber'; // No practices to measure
 
   const greenThreshold = (thresholds?.green ?? 75) / 100;
   const amberThreshold = (thresholds?.amber ?? 40) / 100;
+  const rule = thresholds?.rule || 'percentage';
 
   const percentage = meetsTarget / total;
-  if (percentage >= greenThreshold) return 'green';
-  if (percentage >= amberThreshold) return 'amber';
-  return 'red';
+
+  // Calculate base status from percentage
+  let baseStatus;
+  if (percentage >= greenThreshold) baseStatus = 'green';
+  else if (percentage >= amberThreshold) baseStatus = 'amber';
+  else baseStatus = 'red';
+
+  // Apply rule-based adjustments
+  if (rule === 'percentage') {
+    // Pure percentage-based: no trend adjustment
+    return baseStatus;
+  } else if (rule === 'trend') {
+    // Percentage + Trend Penalty: declining trend downgrades by one level
+    if (trend === 'declining') {
+      if (baseStatus === 'green') return 'amber';
+      if (baseStatus === 'amber') return 'red';
+    }
+    return baseStatus;
+  } else if (rule === 'strictTrend') {
+    // Trend Priority: declining = amber max, improving can upgrade
+    if (trend === 'declining') {
+      // Declining trend: can't be better than amber
+      return baseStatus === 'red' ? 'red' : 'amber';
+    } else if (trend === 'improving') {
+      // Improving trend: can upgrade by one level
+      if (baseStatus === 'red') return 'amber';
+      if (baseStatus === 'amber') return 'green';
+    }
+    return baseStatus;
+  }
+
+  return baseStatus;
 }
 
-// Get effective status for a squad (considering auto-status)
-function getEffectiveSquadStatus(squad, practices, thresholds) {
+// Get effective status for a squad (considering auto-status and trend)
+function getEffectiveSquadStatus(squad, practices, thresholds, trend = 'stable') {
   if (squad.tracked === false) return 'none';
   if (squad.autoStatus !== false) {
-    return calculateAutoRagStatus(squad, practices, thresholds);
+    return calculateAutoRagStatus(squad, practices, thresholds, trend);
   }
   return squad.status || 'red';
 }
@@ -246,7 +277,9 @@ function BooleanPill({ value, target, compact = false }) {
 // Calculate weighted BU RAG status from tracked squads
 // Uses percentage-based thresholds (e.g., 75% of teams are green)
 // practices and teamThresholds are needed to compute effective status for squads with auto-status
-function getWeightedBuStatus(squads, practices, teamThresholds, buThresholds = { green: 75, amber: 40 }) {
+// buTrend: optional BU-level trend for rule-based adjustments
+// previousMonthData and currentBU: used to compute team-level trends when team thresholds have trend rules
+function getWeightedBuStatus(squads, practices, teamThresholds, buThresholds = { green: 75, amber: 40 }, buTrend = 'stable', previousMonthData = null, currentBU = null) {
   // Filter to only tracked squads
   const trackedSquads = squads.filter(s => s.tracked !== false);
 
@@ -260,8 +293,12 @@ function getWeightedBuStatus(squads, practices, teamThresholds, buThresholds = {
 
   trackedSquads.forEach(squad => {
     const weight = squad.weight || 1;
-    // Get effective status (considering auto-status)
-    const effectiveStatus = getEffectiveSquadStatus(squad, practices, teamThresholds);
+    // Calculate team trend if we have previous data
+    const teamTrend = previousMonthData && currentBU
+      ? calculateAutoTrend(squad, previousMonthData, currentBU.id, practices)
+      : 'stable';
+    // Get effective status (considering auto-status and trend for team rule)
+    const effectiveStatus = getEffectiveSquadStatus(squad, practices, teamThresholds, teamTrend);
 
     if (effectiveStatus && effectiveStatus !== 'none') {
       totalWeight += weight;
@@ -280,12 +317,31 @@ function getWeightedBuStatus(squads, practices, teamThresholds, buThresholds = {
 
   // Calculate percentage of green teams (weighted)
   const greenPercent = (greenWeight / totalWeight) * 100;
+  const buRule = buThresholds?.rule || 'percentage';
 
-  // Determine BU status based on percentage thresholds
-  let status;
-  if (greenPercent >= buThresholds.green) status = 'green';
-  else if (greenPercent >= buThresholds.amber) status = 'amber';
-  else status = 'red';
+  // Calculate base BU status from percentage
+  let baseStatus;
+  if (greenPercent >= (buThresholds?.green ?? 75)) baseStatus = 'green';
+  else if (greenPercent >= (buThresholds?.amber ?? 40)) baseStatus = 'amber';
+  else baseStatus = 'red';
+
+  // Apply BU-level rule-based adjustments
+  let status = baseStatus;
+  if (buRule === 'trend') {
+    // Percentage + Trend Penalty: declining trend downgrades by one level
+    if (buTrend === 'declining') {
+      if (baseStatus === 'green') status = 'amber';
+      else if (baseStatus === 'amber') status = 'red';
+    }
+  } else if (buRule === 'strictTrend') {
+    // Trend Priority: declining = amber max, improving can upgrade
+    if (buTrend === 'declining') {
+      status = baseStatus === 'red' ? 'red' : 'amber';
+    } else if (buTrend === 'improving') {
+      if (baseStatus === 'red') status = 'amber';
+      else if (baseStatus === 'amber') status = 'green';
+    }
+  }
 
   return {
     status,
@@ -336,6 +392,7 @@ function SettingsModal({
   colorThemes,
   ragColors,
   thresholds,
+  statusRules,
   darkMode = true,
   onUpdatePractice,
   onAddPractice,
@@ -346,6 +403,7 @@ function SettingsModal({
   onSetColorPreset,
   onUpdateRagColor,
   onUpdateThreshold,
+  onUpdateStatusRule,
   onExportAllArchive,
   onImportAllArchive,
   onExportSettings,
@@ -689,13 +747,33 @@ function SettingsModal({
               <div className={`${st.cardBg} rounded-lg p-4`}>
                 <h4 className={`text-sm font-medium ${st.textMuted} mb-3`}>Status Thresholds</h4>
                 <p className={`text-xs ${st.textDim} mb-4`}>
-                  Configure the percentage thresholds for automatic status calculation.
-                  Both teams and BUs use the same mechanic based on percentages.
+                  Configure the percentage thresholds and calculation rules for automatic status.
+                  Choose different rules to factor in trends when calculating status.
                 </p>
 
                 {/* Team Thresholds */}
-                <div className="mb-4">
+                <div className="mb-6">
                   <h5 className={`text-xs font-medium ${st.textMuted} mb-2`}>Team Status (% of practices at target)</h5>
+
+                  {/* Team Rule Selector */}
+                  <div className={`${st.cardBgAlt} rounded-lg p-3 mb-2`}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className={`text-sm ${st.textMuted}`}>Calculation Rule:</span>
+                      <select
+                        value={thresholds?.team?.rule || 'percentage'}
+                        onChange={(e) => onUpdateStatusRule('team', e.target.value)}
+                        className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
+                      >
+                        {statusRules && Object.values(statusRules).map(rule => (
+                          <option key={rule.id} value={rule.id}>{rule.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className={`text-xs ${st.textDim}`}>
+                      {statusRules?.[thresholds?.team?.rule || 'percentage']?.description || 'Status based on percentage of practices meeting target'}
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
                       <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.green?.hex || '#059669' }} />
@@ -738,6 +816,26 @@ function SettingsModal({
                 {/* BU Thresholds */}
                 <div>
                   <h5 className={`text-xs font-medium ${st.textMuted} mb-2`}>BU Status (% of green teams)</h5>
+
+                  {/* BU Rule Selector */}
+                  <div className={`${st.cardBgAlt} rounded-lg p-3 mb-2`}>
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className={`text-sm ${st.textMuted}`}>Calculation Rule:</span>
+                      <select
+                        value={thresholds?.bu?.rule || 'percentage'}
+                        onChange={(e) => onUpdateStatusRule('bu', e.target.value)}
+                        className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
+                      >
+                        {statusRules && Object.values(statusRules).map(rule => (
+                          <option key={rule.id} value={rule.id}>{rule.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <p className={`text-xs ${st.textDim}`}>
+                      {statusRules?.[thresholds?.bu?.rule || 'percentage']?.description || 'Status based on percentage of green teams'}
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
                       <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.green?.hex || '#059669' }} />
@@ -1266,6 +1364,7 @@ export default function App() {
           colorThemes={store.colorThemes}
           ragColors={store.ragColors}
           thresholds={store.thresholds}
+          statusRules={store.statusRules}
           darkMode={store.darkMode}
           onUpdatePractice={store.updatePractice}
           onAddPractice={store.addPractice}
@@ -1276,6 +1375,7 @@ export default function App() {
           onSetColorPreset={store.setColorPreset}
           onUpdateRagColor={store.updateRagColor}
           onUpdateThreshold={store.updateThreshold}
+          onUpdateStatusRule={store.updateStatusRule}
           onExportAllArchive={store.exportAllArchive}
           onImportAllArchive={store.importAllArchive}
           onExportSettings={store.exportSettings}
@@ -1373,16 +1473,19 @@ export default function App() {
                 )}
               </h2>
               {(() => {
-                const autoRag = calculateAutoRagStatus(currentSquad, store.practices, store.thresholds.team);
+                // Calculate trend for rule-based status calculation
+                const teamTrend = calculateAutoTrend(currentSquad, previousMonthData, currentBU.id, store.practices);
+                const autoRag = calculateAutoRagStatus(currentSquad, store.practices, store.thresholds.team, teamTrend);
                 const isAutoStatus = currentSquad.autoStatus !== false; // Default to auto
                 const displayStatus = currentSquad.tracked === false ? 'none' : (isAutoStatus ? autoRag : (currentSquad.status || autoRag));
                 const sc = getStatusInfo(store.ragColors, displayStatus);
                 const adoptedInfo = getAdoptedCount(currentSquad.practices, store.practices);
+                const ruleLabel = store.thresholds?.team?.rule !== 'percentage' ? ` [${store.statusRules?.[store.thresholds?.team?.rule]?.name || ''}]` : '';
                 return (
                   <div
                     className="px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2"
                     style={{ backgroundColor: sc.hex }}
-                    title={isAutoStatus ? `Auto: ${adoptedInfo.meetsTarget}/${adoptedInfo.total} at target` : 'Manual override'}
+                    title={isAutoStatus ? `Auto: ${adoptedInfo.meetsTarget}/${adoptedInfo.total} at target${ruleLabel}` : 'Manual override'}
                   >
                     {sc.label}
                     {isAutoStatus && <span className="text-xs opacity-70">(auto)</span>}
@@ -1634,11 +1737,13 @@ export default function App() {
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {currentBU.squads.map((squad) => {
-                // Untracked squads display as grey
-                const displayStatus = squad.tracked === false ? 'none' : (squad.status || 'red');
+                // Calculate auto-trend first (needed for status calculation if using trend rules)
+                const autoTrend = calculateAutoTrend(squad, previousMonthData, currentBU.id, store.practices);
+                // Use effective status (considering auto-status and trend for rule-based calculation)
+                const displayStatus = getEffectiveSquadStatus(squad, store.practices, store.thresholds.team, autoTrend);
                 const statusInfo = getStatusInfo(store.ragColors, displayStatus);
                 const { adopted, total, meetsTarget } = getAdoptedCount(squad.practices || {}, store.practices);
-                const trend = trendConfig[squad.monthlyUpdate?.trend] || trendConfig.stable;
+                const trend = trendConfig[autoTrend] || trendConfig.stable;
                 const teamType = store.teamTypes.find(t => t.id === (squad.teamType || 'squad'));
                 return (
                   <Tooltip key={squad.id} squad={squad} practices={store.practices} ragColors={store.ragColors}>
@@ -1757,12 +1862,19 @@ export default function App() {
 
             <div className="grid sm:grid-cols-2 gap-5">
               {monthData.businessUnits.map((bu) => {
+                // Calculate BU-level trend first (needed for status calculation if using trend rules)
+                const buTrend = calculateBUAutoTrend(bu, previousMonthData, store.practices);
+
                 // Use weighted calculation based on tracked squads and their weights
+                // Pass buTrend and previous month data for trend-based rule calculations
                 const { status: dominantStatus, details: statusDetails } = getWeightedBuStatus(
                   bu.squads,
                   store.practices,
                   store.thresholds.team,
-                  store.thresholds.bu
+                  store.thresholds.bu,
+                  buTrend,
+                  previousMonthData,
+                  bu
                 );
                 const statusInfo = getStatusInfo(store.ragColors, dominantStatus);
 
@@ -1781,16 +1893,13 @@ export default function App() {
                   return calculateAutoTrend(squad, previousMonthData, bu.id, store.practices);
                 };
 
-                // Get trend icon for a team
+                // Get trend icon for a team (using simple characters to avoid emoji rendering)
                 const getTrendIcon = (squad) => {
                   const trend = getTeamAutoTrend(squad);
-                  if (trend === 'improving') return '↗';
-                  if (trend === 'declining') return '↘';
+                  if (trend === 'improving') return '▲';
+                  if (trend === 'declining') return '▼';
                   return null;
                 };
-
-                // Calculate BU-level trend
-                const buTrend = calculateBUAutoTrend(bu, previousMonthData, store.practices);
 
                 return (
                   <div
@@ -1834,7 +1943,9 @@ export default function App() {
                       <p className="text-xs text-white/50 mb-2">Team Status ({bu.squads.length})</p>
                       <div className="flex flex-wrap gap-1.5">
                         {bu.squads.map((squad) => {
-                          const squadStatus = squad.tracked === false ? 'none' : (squad.status || 'red');
+                          // Calculate trend first for rule-based status calculation
+                          const squadTrend = getTeamAutoTrend(squad);
+                          const squadStatus = getEffectiveSquadStatus(squad, store.practices, store.thresholds.team, squadTrend);
                           const squadInfo = getStatusInfo(store.ragColors, squadStatus);
                           const trendIcon = getTrendIcon(squad);
                           // Use white-based opacity for pills on colored background

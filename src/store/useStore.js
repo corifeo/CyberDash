@@ -30,13 +30,35 @@ const DEFAULT_TEAM_TYPES = [
   { id: "platform", label: "Platform Team" },
 ];
 
+// Status rule types
+// - 'percentage': based on % of practices meeting target (teams) or % of green teams (BUs)
+// - 'trend': considers trend in addition to percentage (declining trend downgrades status)
+// - 'strict-trend': trend-first (any declining trend = amber, improving can upgrade)
+const STATUS_RULES = {
+  percentage: {
+    id: 'percentage',
+    name: 'Percentage Only',
+    description: 'Status based only on % of practices at target (teams) or % of green teams (BUs)'
+  },
+  trend: {
+    id: 'trend',
+    name: 'Percentage + Trend Penalty',
+    description: 'Percentage-based with trend penalty: declining trend downgrades by one level'
+  },
+  strictTrend: {
+    id: 'strictTrend',
+    name: 'Trend Priority',
+    description: 'Trend-first: declining = amber max, improving can upgrade by one level'
+  },
+};
+
 // Default thresholds (percentage-based for both BU and Team)
 // Both use the same mechanic: percentage of "good" score
 const DEFAULT_THRESHOLDS = {
-  // For teams: % of practices meeting target
-  team: { green: 75, amber: 40 },
-  // For BUs: % of teams that are green (weighted)
-  bu: { green: 75, amber: 40 },
+  // For teams: % of practices meeting target, with optional rule type
+  team: { green: 75, amber: 40, rule: 'percentage' },
+  // For BUs: % of teams that are green (weighted), with optional rule type
+  bu: { green: 75, amber: 40, rule: 'percentage' },
 };
 
 // Available color themes
@@ -693,6 +715,23 @@ export function useStore() {
     });
   }, []);
 
+  // Update status rule type (team or BU)
+  const updateStatusRule = useCallback((type, rule) => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData.thresholds) {
+        newData.thresholds = DEFAULT_THRESHOLDS;
+      }
+      if (!newData.thresholds[type]) {
+        newData.thresholds[type] = DEFAULT_THRESHOLDS[type];
+      }
+      if (STATUS_RULES[rule]) {
+        newData.thresholds[type].rule = rule;
+      }
+      return newData;
+    });
+  }, []);
+
   // Migrate practice IDs from timestamp-based to slug-based
   const migratePracticeIds = useCallback(() => {
     let migratedCount = 0;
@@ -780,6 +819,7 @@ export function useStore() {
     ragColors: data.ragColors || DEFAULT_RAG_COLORS,
     teamTypes: data.teamTypes || DEFAULT_TEAM_TYPES,
     thresholds,
+    statusRules: STATUS_RULES,
     darkMode: data.darkMode !== false,
     colorTheme: data.colorTheme || 'default',
     colorThemes: COLOR_THEMES,
@@ -809,6 +849,7 @@ export function useStore() {
     updateMaturityScale,
     updateTeamType,
     updateThreshold,
+    updateStatusRule,
     setDarkMode,
     setColorPreset,
     updateRagColor,
