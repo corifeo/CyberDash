@@ -24,6 +24,7 @@ Open http://localhost:5173 in your browser.
 ### Teams
 - **Configurable Types** - Support for Squads, Tribes, or custom team types
 - **RAG Status** - Green/Amber/Red status with customizable labels and colors
+- **Auto Status** - Status calculated from practice adoption percentage (can override manually)
 - **Tracking** - Mark teams as tracked/untracked (untracked = grey, excluded from BU status)
 - **Weighting** - Assign relative importance (0.1-1) for weighted calculations
 
@@ -40,11 +41,19 @@ Open http://localhost:5173 in your browser.
 - **Descriptions** - Add explanations for each maturity level
 - **N/A Option** - Level -1 for practices not applicable to a team
 
+### Status Calculation
+- **Thresholds** - Configure percentage thresholds for Green/Amber/Red status
+- **Rules** - Choose calculation method:
+  - *Percentage Only* - Status based purely on % of practices at target
+  - *Percentage + Trend* - Declining trend downgrades status by one level
+  - *Trend Priority* - Declining = amber max, improving can upgrade
+
 ### Data Management
 - **Auto-save** - All changes saved to localStorage automatically
 - **Month Management** - Create new reporting periods, switch between them
 - **Export/Import** - Download data as JSON, restore from backup
 - **Settings Export** - Export just practices, scale, and colors separately
+- **Test Data** - Load sample data with 4 BUs and 22 teams for demos
 - **Factory Reset** - Start fresh with default settings
 
 ### View/Edit Modes
@@ -69,24 +78,27 @@ Open http://localhost:5173 in your browser.
 - **Practices**: Toggle for Yes/No, click maturity buttons for levels
 - **N/A**: Click N/A button to mark practice as not applicable
 - **Monthly Update**: Add summary of this period and plans for next
-- **Trend**: Set to Improving, Stable, or Needs Attention
+- **Trend**: Auto-calculated by comparing practice scores with previous month
 
 ## File Structure
 
 ```
 src/
-  App.jsx           # Main application component
+  App.jsx           # Main application component (~1800 lines, all views)
   main.jsx          # React entry point
   index.css         # Tailwind CSS styles
   store/
-    useStore.js     # State management with localStorage
+    useStore.js     # State management with localStorage persistence
   components/
-    Editable.jsx    # Inline editing components
-    ui.jsx          # Reusable UI components (cards, pills, tooltips)
+    Dashboard.jsx   # Status helpers, tooltips, legend components
+    Editable.jsx    # Click-to-edit text, textarea, toggle, maturity inputs
+  utils/
+    calculations.js # Pure functions for status/trend calculations
   defaults/
-    practices.json  # Default practice definitions (editable)
-    maturityScale.json  # Default maturity scale levels (editable)
-    teamTypes.json  # Default team types (Squad, Tribe)
+    practices.json  # Default security practices (10 practices)
+    maturityScale.json  # Maturity levels (0-4 scale)
+    teamTypes.json  # Team types (Squad, Tribe, Team, Platform)
+    testData.json   # Sample data for demos (4 BUs, 22 teams)
 ```
 
 ## Customizing Defaults
