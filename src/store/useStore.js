@@ -44,6 +44,12 @@ const COLOR_PRESETS = {
 // Default practice order
 const DEFAULT_PRACTICE_ORDER = Object.keys(DEFAULT_PRACTICES);
 
+// Default BU status thresholds
+const DEFAULT_BU_THRESHOLDS = {
+  green: 2.5,  // Score >= this = green
+  amber: 1.5,  // Score >= this = amber (but < green)
+};
+
 // Default starter data
 const DEFAULT_DATA = {
   currentMonth: "2025-01",
@@ -52,6 +58,7 @@ const DEFAULT_DATA = {
   practiceOrder: DEFAULT_PRACTICE_ORDER,
   ragColors: DEFAULT_RAG_COLORS,
   teamTypes: DEFAULT_TEAM_TYPES,
+  buThresholds: DEFAULT_BU_THRESHOLDS,
   darkMode: true, // Default to dark mode
   colorPreset: 'default',
   months: {
@@ -647,6 +654,22 @@ export function useStore() {
     });
   }, []);
 
+  // Update BU status thresholds
+  const updateBuThreshold = useCallback((level, value) => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData.buThresholds) {
+        newData.buThresholds = DEFAULT_BU_THRESHOLDS;
+      }
+      // Ensure value is a valid number between 1 and 3
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue) && numValue >= 1 && numValue <= 3) {
+        newData.buThresholds[level] = numValue;
+      }
+      return newData;
+    });
+  }, []);
+
   // Migrate practice IDs from timestamp-based to slug-based
   // Returns { migrated: number, total: number } with count of migrated practices
   const migratePracticeIds = useCallback(() => {
@@ -728,6 +751,7 @@ export function useStore() {
     maturityScale: data.maturityScale || DEFAULT_MATURITY_SCALE,
     ragColors: data.ragColors || DEFAULT_RAG_COLORS,
     teamTypes: data.teamTypes || DEFAULT_TEAM_TYPES,
+    buThresholds: data.buThresholds || DEFAULT_BU_THRESHOLDS,
     darkMode: data.darkMode !== false, // Default to true
     colorPreset: data.colorPreset || 'default',
     colorPresets: COLOR_PRESETS,
@@ -757,6 +781,7 @@ export function useStore() {
     deletePractice,
     updateMaturityScale,
     updateTeamType,
+    updateBuThreshold,
     setDarkMode,
     setColorPreset,
     updateRagColor,

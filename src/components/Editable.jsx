@@ -134,6 +134,7 @@ export function EditableSelect({ value, onChange, options, className = "" }) {
 /**
  * Toggle for boolean practices with N/A support
  * Values: true, false, 'na'
+ * Click cycles: No → Yes → N/A → No
  */
 export function EditableToggle({ value, onChange, label }) {
   // Cycle: false -> true -> na -> false
@@ -148,19 +149,24 @@ export function EditableToggle({ value, onChange, label }) {
   return (
     <button
       onClick={handleClick}
-      className={`flex items-center gap-2 px-2 py-1 rounded transition-colors ${
+      className={`flex items-center justify-between w-full gap-2 px-2 py-1.5 rounded transition-colors ${
         isNA
           ? "bg-slate-500/20 text-slate-400 hover:bg-slate-500/30"
           : value
             ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
             : "bg-red-500/20 text-red-400 hover:bg-red-500/30"
       }`}
-      title={isNA ? "N/A - Not applicable" : (value ? "Yes" : "No")}
+      title={`Click to change: ${isNA ? "N/A → No" : value ? "Yes → N/A" : "No → Yes"}`}
     >
-      <span className={`w-3 h-3 rounded-full ${
-        isNA ? "bg-slate-400" : value ? "bg-emerald-400" : "bg-red-400"
-      }`} />
-      {isNA ? 'N/A' : label}
+      <span className="text-sm font-medium">{label}</span>
+      <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${
+        isNA ? "bg-slate-500/30" : value ? "bg-emerald-500/30" : "bg-red-500/30"
+      }`}>
+        <span className={`w-2 h-2 rounded-full ${
+          isNA ? "bg-slate-400" : value ? "bg-emerald-400" : "bg-red-400"
+        }`} />
+        {isNA ? 'N/A' : value ? 'Yes' : 'No'}
+      </span>
     </button>
   );
 }

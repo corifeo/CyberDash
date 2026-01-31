@@ -146,7 +146,7 @@ function BooleanPill({ value, target, compact = false }) {
 // Calculate weighted BU RAG status from tracked squads
 // A "problem" team is one that's behind (red/amber) AND not improving
 // Improving teams get a bonus to reduce their negative impact
-function getWeightedBuStatus(squads) {
+function getWeightedBuStatus(squads, thresholds = { green: 2.5, amber: 1.5 }) {
   // Filter to only tracked squads with valid status
   const trackedSquads = squads.filter(s => s.tracked !== false && s.status && s.status !== 'none');
 
@@ -197,10 +197,10 @@ function getWeightedBuStatus(squads) {
 
   const avgScore = weightedSum / totalWeight;
 
-  // Convert back to status: 2.5+ = green, 1.5+ = amber, else red
+  // Convert back to status using configurable thresholds
   let status;
-  if (avgScore >= 2.5) status = 'green';
-  else if (avgScore >= 1.5) status = 'amber';
+  if (avgScore >= thresholds.green) status = 'green';
+  else if (avgScore >= thresholds.amber) status = 'amber';
   else status = 'red';
 
   return {
@@ -256,6 +256,7 @@ function SettingsModal({
   colorPreset,
   colorPresets,
   ragColors,
+  buThresholds,
   darkMode = true,
   onUpdatePractice,
   onAddPractice,
@@ -265,6 +266,7 @@ function SettingsModal({
   onDeleteMonth,
   onSetColorPreset,
   onUpdateRagColor,
+  onUpdateBuThreshold,
   onExportAllArchive,
   onImportAllArchive,
   onExportSettings,
@@ -684,6 +686,52 @@ function SettingsModal({
                   The "none" status is for squads not being actively measured.
                 </p>
               </div>
+
+              {/* BU Status Thresholds */}
+              <div>
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-3`}>
+                  BU Status Thresholds
+                </h3>
+                <p className={`text-xs ${st.textDim} mb-3`}>
+                  Configure the score thresholds for BU status calculation.
+                  Team scores: Green=3, Amber=2, Red=1. Improving teams get +0.5 bonus.
+                </p>
+                <div className="space-y-2">
+                  <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
+                    <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.green?.hex || '#059669' }} />
+                    <span className={`text-sm ${st.textMuted} w-32`}>Green threshold</span>
+                    <span className={`text-xs ${st.textDim}`}>Score ≥</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="3"
+                      step="0.1"
+                      value={buThresholds?.green ?? 2.5}
+                      onChange={(e) => onUpdateBuThreshold('green', e.target.value)}
+                      className={`w-20 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
+                    />
+                  </div>
+                  <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
+                    <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.amber?.hex || '#d97706' }} />
+                    <span className={`text-sm ${st.textMuted} w-32`}>Amber threshold</span>
+                    <span className={`text-xs ${st.textDim}`}>Score ≥</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="3"
+                      step="0.1"
+                      value={buThresholds?.amber ?? 1.5}
+                      onChange={(e) => onUpdateBuThreshold('amber', e.target.value)}
+                      className={`w-20 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
+                    />
+                  </div>
+                  <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
+                    <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.red?.hex || '#dc2626' }} />
+                    <span className={`text-sm ${st.textMuted} w-32`}>Red</span>
+                    <span className={`text-xs ${st.textDim}`}>Score below amber threshold</span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1061,6 +1109,7 @@ export default function App() {
           colorPreset={store.colorPreset}
           colorPresets={store.colorPresets}
           ragColors={store.ragColors}
+          buThresholds={store.buThresholds}
           darkMode={store.darkMode}
           onUpdatePractice={store.updatePractice}
           onAddPractice={store.addPractice}
@@ -1070,6 +1119,7 @@ export default function App() {
           onDeleteMonth={store.deleteMonth}
           onSetColorPreset={store.setColorPreset}
           onUpdateRagColor={store.updateRagColor}
+          onUpdateBuThreshold={store.updateBuThreshold}
           onExportAllArchive={store.exportAllArchive}
           onImportAllArchive={store.importAllArchive}
           onExportSettings={store.exportSettings}
@@ -1491,7 +1541,7 @@ export default function App() {
               <p className={`text-center ${theme.muted} py-8`}>No squads yet. {editMode && 'Add one to get started.'}</p>
             )}
 
-            <Legend darkMode={store.darkMode} ragColors={store.ragColors} orderedPractices={store.orderedPractices} maturityScale={store.maturityScale} />
+            <Legend darkMode={store.darkMode} ragColors={store.ragColors} orderedPractices={store.orderedPractices} maturityScale={store.maturityScale} buThresholds={store.buThresholds} />
 
             {editMode && (
               <button
@@ -1527,7 +1577,7 @@ export default function App() {
             <div className="grid sm:grid-cols-2 gap-5">
               {monthData.businessUnits.map((bu) => {
                 // Use weighted calculation based on tracked squads and their weights
-                const { status: dominantStatus, details: statusDetails } = getWeightedBuStatus(bu.squads);
+                const { status: dominantStatus, details: statusDetails } = getWeightedBuStatus(bu.squads, store.buThresholds);
                 const statusInfo = getStatusInfo(store.ragColors, dominantStatus);
 
                 // Calculate practice adoption across squads
@@ -1577,14 +1627,14 @@ export default function App() {
                         <span className="w-2 h-2 rounded-full bg-red-400"></span>
                         {statusDetails.red}
                       </span>
-                      {statusDetails.problems > 0 && (
-                        <span className="text-red-200" title="Teams behind and not improving">
-                          ⚠ {statusDetails.problems} stuck
+                      {statusDetails.improving > 0 && (
+                        <span className="text-emerald-200" title={`${statusDetails.improving} team(s) with improving trend`}>
+                          ↗ {statusDetails.improving} improving
                         </span>
                       )}
-                      {statusDetails.improving > 0 && (
-                        <span className="text-emerald-200" title="Teams improving">
-                          ↗ {statusDetails.improving}
+                      {statusDetails.problems > 0 && (
+                        <span className="text-red-200" title={`${statusDetails.problems} team(s) at Red/Amber status without improving trend`}>
+                          ⚠ {statusDetails.problems} at risk
                         </span>
                       )}
                     </div>
@@ -1686,7 +1736,7 @@ export default function App() {
               <p className={`text-center ${theme.muted} py-8`}>No business units yet. {editMode && 'Add one to get started.'}</p>
             )}
 
-            <Legend darkMode={store.darkMode} ragColors={store.ragColors} orderedPractices={store.orderedPractices} maturityScale={store.maturityScale} />
+            <Legend darkMode={store.darkMode} ragColors={store.ragColors} orderedPractices={store.orderedPractices} maturityScale={store.maturityScale} buThresholds={store.buThresholds} />
           </div>
         )}
       </main>

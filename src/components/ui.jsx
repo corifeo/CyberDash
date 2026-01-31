@@ -24,7 +24,7 @@ export function getStatusInfo(ragColors, status) {
 }
 
 // Calculate weighted BU status from squads
-export function getWeightedBuStatus(squads) {
+export function getWeightedBuStatus(squads, thresholds = { green: 2.5, amber: 1.5 }) {
   const trackedSquads = squads.filter(s => s.tracked !== false);
   if (trackedSquads.length === 0) return 'none';
 
@@ -40,8 +40,8 @@ export function getWeightedBuStatus(squads) {
   });
 
   const avg = totalWeight > 0 ? weightedSum / totalWeight : 0;
-  if (avg >= 2.5) return 'green';
-  if (avg >= 1.5) return 'amber';
+  if (avg >= thresholds.green) return 'green';
+  if (avg >= thresholds.amber) return 'amber';
   return 'red';
 }
 

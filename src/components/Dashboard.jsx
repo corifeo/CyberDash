@@ -221,7 +221,7 @@ export function TeamTooltip({ squad, practices, ragColors, children }) {
 }
 
 // Legend Component with Practice Guide
-export function Legend({ darkMode = true, ragColors, orderedPractices = [], maturityScale = [] }) {
+export function Legend({ darkMode = true, ragColors, orderedPractices = [], maturityScale = [], buThresholds = { green: 2.5, amber: 1.5 } }) {
   const [showGuide, setShowGuide] = useState(false);
 
   const theme = darkMode ? {
@@ -249,10 +249,10 @@ export function Legend({ darkMode = true, ragColors, orderedPractices = [], matu
           <Info className={`w-4 h-4 ${theme.muted}`} />
           <span className={`text-sm font-medium ${theme.text}`}>Legend</span>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* RAG Status */}
           <div>
-            <p className={`text-xs ${theme.muted} mb-2`}>RAG Status</p>
+            <p className={`text-xs ${theme.muted} mb-2`}>Card & Team Status</p>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded" style={{ backgroundColor: ragColors?.green?.hex || '#059669' }} />
@@ -275,86 +275,62 @@ export function Legend({ darkMode = true, ragColors, orderedPractices = [], matu
 
           {/* Trend */}
           <div>
-            <p className={`text-xs ${theme.muted} mb-2`}>Trend</p>
+            <p className={`text-xs ${theme.muted} mb-2`}>Trend (manual)</p>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+                <ArrowUpRight className="w-4 h-4 text-emerald-500" />
                 <span className={`text-xs ${theme.text}`}>Improving</span>
               </div>
               <div className="flex items-center gap-2">
-                <Minus className={`w-4 h-4 ${theme.muted}`} />
+                <Minus className="w-4 h-4 text-slate-500" />
                 <span className={`text-xs ${theme.text}`}>Stable</span>
               </div>
               <div className="flex items-center gap-2">
-                <ArrowDownRight className="w-4 h-4 text-amber-400" />
+                <ArrowDownRight className="w-4 h-4 text-amber-500" />
                 <span className={`text-xs ${theme.text}`}>Needs Attention</span>
               </div>
             </div>
+            <p className={`text-[10px] ${theme.dim} mt-1`}>Set per team in edit mode</p>
           </div>
 
-          {/* Team Status Pills (on BU cards) */}
-          <div>
-            <p className={`text-xs ${theme.muted} mb-2`}>Team Status</p>
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-white/90 border border-slate-300" />
-                <span className={`text-xs ${theme.text}`}>Strong</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-white/70 border border-slate-300" />
-                <span className={`text-xs ${theme.text}`}>Developing</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-white/40 border border-slate-300" />
-                <span className={`text-xs ${theme.text}`}>Early Stage</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-white/20 border border-slate-300" />
-                <span className={`text-xs ${theme.text}`}>Not Tracked</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Practice Adoption Pills (on BU cards) */}
+          {/* Practice Adoption (on BU cards) */}
           <div>
             <p className={`text-xs ${theme.muted} mb-2`}>Practice Adoption</p>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-white/90 border border-slate-300" />
-                <span className={`text-xs ${theme.text}`}>All teams adopted</span>
+                <span className="w-3 h-3 rounded-full bg-emerald-500" />
+                <span className={`text-xs ${theme.text}`}>All teams at target</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full border border-slate-300 overflow-hidden">
-                  <span className="block w-full h-1/2 bg-white/90 mt-1.5"></span>
-                </span>
+                <span className="w-3 h-3 rounded-full bg-amber-500" />
                 <span className={`text-xs ${theme.text}`}>Partial adoption</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-white/25 border border-slate-300" />
-                <span className={`text-xs ${theme.text}`}>No teams adopted</span>
+                <span className="w-3 h-3 rounded-full bg-red-400" />
+                <span className={`text-xs ${theme.text}`}>No teams at target</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-white/10 border border-white/30" />
-                <span className={`text-xs ${theme.text}`}>N/A for all</span>
+                <span className="w-3 h-3 rounded-full bg-slate-400" />
+                <span className={`text-xs ${theme.text}`}>N/A for all teams</span>
               </div>
             </div>
           </div>
 
-          {/* Detail View Pills */}
+          {/* Maturity Progress */}
           <div>
-            <p className={`text-xs ${theme.muted} mb-2`}>Detail View</p>
+            <p className={`text-xs ${theme.muted} mb-2`}>Maturity Progress</p>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-emerald-300" />
-                <span className={`text-xs ${theme.text}`}>At target</span>
+                <span className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-emerald-300" />
+                <span className={`text-xs ${theme.text}`}>At or above target</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-amber-400" />
-                <span className={`text-xs ${theme.text}`}>Close to target</span>
+                <span className="w-3 h-3 rounded-full bg-amber-500" />
+                <span className={`text-xs ${theme.text}`}>Close (target - 1)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-slate-600 ring-2 ring-white/50" />
-                <span className={`text-xs ${theme.text}`}>Target level</span>
+                <span className="w-3 h-3 rounded-full bg-slate-500" />
+                <span className={`text-xs ${theme.text}`}>Behind target</span>
               </div>
             </div>
           </div>
@@ -363,9 +339,8 @@ export function Legend({ darkMode = true, ragColors, orderedPractices = [], matu
         {/* BU Status Calculation Explanation */}
         <div className={`mt-4 pt-3 border-t ${theme.border}`}>
           <p className={`text-xs ${theme.dim}`}>
-            <strong className={theme.muted}>BU Status:</strong> Weighted average of team statuses.
-            Improving teams get a bonus (+0.5), declining teams get a penalty (-0.5).
-            "Stuck" teams are behind (red/amber) and not improving.
+            <strong className={theme.muted}>BU Status:</strong> Based on team statuses (Green=3, Amber=2, Red=1).
+            Improving teams add +0.5 bonus. Score ≥{buThresholds.green} = Green, ≥{buThresholds.amber} = Amber, else Red.
           </p>
         </div>
       </div>
