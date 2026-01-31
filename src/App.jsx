@@ -504,51 +504,54 @@ function Legend({ darkMode = true, ragColors, orderedPractices = [], maturitySca
             {/* Maturity Scale */}
             <div>
               <h4 className={`text-sm font-medium ${theme.text} mb-2`}>Maturity Scale</h4>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              <div className="flex flex-wrap gap-2">
                 {maturityScale.map((level) => (
-                  <div key={level.level} className={`${theme.bgAlt} rounded p-2 text-xs`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`w-5 h-5 rounded flex items-center justify-center font-bold text-white ${
-                        level.level === -1 ? 'bg-slate-500' :
-                        level.level === 0 ? 'bg-slate-600' :
-                        level.level === 4 ? 'bg-emerald-500' :
-                        'bg-cyber-500'
-                      }`}>
-                        {level.short}
-                      </span>
-                      <span className={`font-medium ${theme.text}`}>{level.label}</span>
-                    </div>
-                    <p className={`${theme.dim} leading-relaxed`}>{level.description}</p>
+                  <div
+                    key={level.level}
+                    className={`${theme.bgAlt} rounded px-3 py-1.5 text-xs flex items-center gap-2 cursor-help`}
+                    title={level.description}
+                  >
+                    <span className={`w-5 h-5 rounded flex items-center justify-center font-bold text-white ${
+                      level.level === -1 ? 'bg-slate-500' :
+                      level.level === 0 ? 'bg-slate-600' :
+                      level.level === 4 ? 'bg-emerald-500' :
+                      'bg-cyber-500'
+                    }`}>
+                      {level.short}
+                    </span>
+                    <span className={`font-medium ${theme.text}`}>{level.label}</span>
                   </div>
                 ))}
               </div>
+              <p className={`text-xs ${theme.dim} mt-2`}>Hover over levels for descriptions</p>
             </div>
 
             {/* Practices */}
             {orderedPractices.length > 0 && (
               <div>
                 <h4 className={`text-sm font-medium ${theme.text} mb-2`}>Security Practices</h4>
-                <div className="space-y-2">
+                <div className="flex flex-wrap gap-2">
                   {orderedPractices.map((practice) => (
-                    <div key={practice.id} className={`${theme.bgAlt} rounded p-2 text-xs`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className={`w-2 h-2 rounded-full ${
-                          practice.type === 'boolean' ? 'bg-cyan-500' : 'bg-purple-500'
-                        }`} />
-                        <span className={`font-medium ${theme.text}`}>{practice.name}</span>
-                        {practice.important && (
-                          <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
-                        )}
-                        <span className={`${theme.dim}`}>
-                          ({practice.type === 'boolean' ? 'Yes/No' : `Target: ${practice.target}`})
-                        </span>
-                      </div>
-                      {practice.description && (
-                        <p className={`${theme.dim} leading-relaxed`}>{practice.description}</p>
+                    <div
+                      key={practice.id}
+                      className={`${theme.bgAlt} rounded px-3 py-1.5 text-xs flex items-center gap-2 cursor-help`}
+                      title={practice.description || 'No description'}
+                    >
+                      <span
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: practice.color || (practice.type === 'boolean' ? '#06b6d4' : '#a855f7') }}
+                      />
+                      <span className={`font-medium ${theme.text}`}>{practice.name}</span>
+                      {practice.important && (
+                        <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
                       )}
+                      <span className={`${theme.dim}`}>
+                        ({practice.type === 'boolean' ? 'Yes/No' : `Target: ${practice.target}`})
+                      </span>
                     </div>
                   ))}
                 </div>
+                <p className={`text-xs ${theme.dim} mt-2`}>Hover over practices for descriptions</p>
               </div>
             )}
           </div>
@@ -747,9 +750,14 @@ function SettingsModal({
                             <ChevronDown className="w-3 h-3" />
                           </button>
                         </div>
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          practice.type === 'boolean' ? 'bg-cyan-500' : 'bg-purple-500'
-                        }`} />
+                        {/* Color picker */}
+                        <input
+                          type="color"
+                          value={practice.color || (practice.type === 'boolean' ? '#06b6d4' : '#a855f7')}
+                          onChange={(e) => onUpdatePractice(practice.id, 'color', e.target.value)}
+                          className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent flex-shrink-0"
+                          title="Practice color"
+                        />
                         <input
                           type="text"
                           value={practice.name}
@@ -777,10 +785,10 @@ function SettingsModal({
                           <option value="maturity">Maturity</option>
                           <option value="boolean">Yes/No</option>
                         </select>
-                        {/* Target (maturity only) */}
-                        {practice.type === 'maturity' && (
-                          <div className="flex items-center gap-1">
-                            <Target className={`w-3 h-3 ${st.textHint}`} />
+                        {/* Target */}
+                        <div className="flex items-center gap-1">
+                          <Target className={`w-3 h-3 ${st.textHint}`} />
+                          {practice.type === 'maturity' ? (
                             <select
                               value={practice.target || 3}
                               onChange={(e) => onUpdatePractice(practice.id, 'target', parseInt(e.target.value))}
@@ -792,8 +800,17 @@ function SettingsModal({
                                 </option>
                               ))}
                             </select>
-                          </div>
-                        )}
+                          ) : (
+                            <select
+                              value={practice.target === false ? 'false' : 'true'}
+                              onChange={(e) => onUpdatePractice(practice.id, 'target', e.target.value === 'true')}
+                              className={`${st.input} border rounded px-1 py-1 text-xs w-14`}
+                            >
+                              <option value="true">Yes</option>
+                              <option value="false">No</option>
+                            </select>
+                          )}
+                        </div>
                         <button
                           onClick={() => {
                             if (confirm(`Delete "${practice.name}"?`)) {
@@ -824,12 +841,8 @@ function SettingsModal({
               <div className={`pt-4 border-t ${st.border}`}>
                 <div className={`flex flex-wrap items-center gap-x-6 gap-y-2 text-xs ${st.textHint}`}>
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-cyan-500" />
-                    Boolean (Yes/No)
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-purple-500" />
-                    Maturity (scale levels)
+                    <span className="w-4 h-4 rounded border border-slate-500 bg-gradient-to-br from-cyan-500 to-purple-500" />
+                    Click to set color
                   </div>
                   <div className="flex items-center gap-2">
                     <Target className="w-3 h-3" />
@@ -841,82 +854,44 @@ function SettingsModal({
                   </div>
                 </div>
               </div>
-
-              {/* Practice Guide - Expandable */}
-              <div className={`mt-4 border ${st.border} rounded-lg overflow-hidden`}>
-                <button
-                  onClick={() => setShowPracticeGuide(!showPracticeGuide)}
-                  className={`w-full flex items-center justify-between p-3 ${st.cardBgAlt} ${st.hover} text-left`}
-                >
-                  <span className={`text-sm font-medium ${st.textMuted}`}>
-                    <Info className="w-4 h-4 inline-block mr-2" />
-                    Practice Guide & RAG Calculation
-                  </span>
-                  <ChevronDown className={`w-4 h-4 ${st.textHint} transition-transform ${showPracticeGuide ? 'rotate-180' : ''}`} />
-                </button>
-                {showPracticeGuide && (
-                  <div className={`p-4 space-y-4 ${st.cardBg} border-t ${st.border}`}>
-                    <div>
-                      <h4 className={`text-sm font-medium ${st.textMuted} mb-2`}>How RAG Status is Calculated</h4>
-                      <p className={`text-xs ${st.textDim} leading-relaxed`}>
-                        The RAG (Red/Amber/Green) status is manually set for each squad based on their overall security posture.
-                        Tracked squads contribute to the Business Unit's weighted RAG calculation - squads with higher weights have more influence.
-                        Untracked squads are displayed in grey and don't affect the BU status.
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className={`text-sm font-medium ${st.textMuted} mb-2`}>Practice Definitions</h4>
-                      <div className="space-y-3">
-                        {orderedPractices.map((practice) => (
-                          <div key={practice.id} className={`text-xs ${st.cardBgAlt} rounded p-2`}>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className={`w-2 h-2 rounded-full ${
-                                practice.type === 'boolean' ? 'bg-cyan-500' : 'bg-purple-500'
-                              }`} />
-                              <span className={`font-medium ${st.text}`}>{practice.name}</span>
-                              <span className={`${st.textDim}`}>
-                                ({practice.type === 'boolean' ? 'Yes/No' : `Target: ${practice.target}`})
-                              </span>
-                            </div>
-                            <p className={`${st.textDim} leading-relaxed pl-4`}>
-                              {practice.description || 'No description available.'}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
           {activeTab === 'scale' && (
             <div className="space-y-4">
               <p className={`text-sm ${st.textHint}`}>
-                Customize the labels for your maturity scale. Level 0 means "not started".
+                Customize the labels and descriptions for your maturity scale. Level 0 means "not started".
               </p>
 
               <div className="space-y-2">
                 {maturityScale.map((level, idx) => (
-                  <div key={idx} className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
-                    <div className={`w-8 h-8 rounded-full ${st.cardBg} flex items-center justify-center font-bold text-sm`}>
-                      {level.level}
+                  <div key={idx} className={`${st.cardBgAlt} rounded-lg p-3 space-y-2`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full ${st.cardBg} flex items-center justify-center font-bold text-sm flex-shrink-0`}>
+                        {level.level}
+                      </div>
+                      <input
+                        type="text"
+                        value={level.label}
+                        onChange={(e) => onUpdateMaturityScale(idx, 'label', e.target.value)}
+                        placeholder="Level label..."
+                        className={`flex-1 ${st.input} border rounded px-3 py-2 text-sm focus:border-cyber-500 outline-none`}
+                      />
+                      <input
+                        type="text"
+                        value={level.short}
+                        onChange={(e) => onUpdateMaturityScale(idx, 'short', e.target.value)}
+                        placeholder="Short"
+                        maxLength={2}
+                        className={`w-12 ${st.input} border rounded px-2 py-2 text-sm text-center focus:border-cyber-500 outline-none`}
+                      />
                     </div>
                     <input
                       type="text"
-                      value={level.label}
-                      onChange={(e) => onUpdateMaturityScale(idx, 'label', e.target.value)}
-                      placeholder="Level label..."
-                      className={`flex-1 ${st.input} border rounded px-3 py-2 text-sm focus:border-cyber-500 outline-none`}
-                    />
-                    <input
-                      type="text"
-                      value={level.short}
-                      onChange={(e) => onUpdateMaturityScale(idx, 'short', e.target.value)}
-                      placeholder="Short"
-                      maxLength={2}
-                      className={`w-12 ${st.input} border rounded px-2 py-2 text-sm text-center focus:border-cyber-500 outline-none`}
+                      value={level.description || ''}
+                      onChange={(e) => onUpdateMaturityScale(idx, 'description', e.target.value)}
+                      placeholder="Description (shown on hover)..."
+                      className={`w-full ${st.input} border rounded px-3 py-1.5 text-xs focus:border-cyber-500 outline-none ml-11`}
                     />
                   </div>
                 ))}

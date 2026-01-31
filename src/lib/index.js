@@ -1,21 +1,16 @@
 /**
  * CyberDash - Security Practices Dashboard Library
  *
- * A tiny library for providing quick monthly security updates
- * with modern visualizations.
+ * A browser-based dashboard for tracking security practices
+ * across business units and squads. Data is stored in localStorage.
  *
  * @example
- * import { Dashboard, useDashboardData } from 'cyberdash';
- * import organizationData from './data/organization.json';
- * import practiceDefinitions from './data/practices.json';
+ * import { useStore } from './store/useStore';
  *
  * function App() {
- *   return (
- *     <Dashboard
- *       organizationData={organizationData}
- *       practiceDefinitions={practiceDefinitions}
- *     />
- *   );
+ *   const store = useStore();
+ *   // All data is managed via the store
+ *   return <Dashboard store={store} />;
  * }
  */
 

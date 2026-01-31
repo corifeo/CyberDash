@@ -477,24 +477,24 @@ export function useStore() {
     setData(DEFAULT_DATA);
   }, []);
 
-  // Reset current month to previous period's data
+  // Reset current month to previous period's data (or blank if no previous)
   const resetToLastPeriod = useCallback(() => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
       const sortedMonths = Object.keys(newData.months).sort().reverse();
       const currentIndex = sortedMonths.indexOf(newData.currentMonth);
 
-      // If no previous month exists, do nothing
+      let resetBusinessUnits;
+
+      // If no previous month exists, reset to blank state
       if (currentIndex < 0 || currentIndex >= sortedMonths.length - 1) {
-        console.warn("No previous period to reset to");
-        return prev;
+        resetBusinessUnits = [];
+      } else {
+        const previousMonth = sortedMonths[currentIndex + 1];
+        const previousData = newData.months[previousMonth];
+        // Deep clone the previous month's business units
+        resetBusinessUnits = JSON.parse(JSON.stringify(previousData.businessUnits));
       }
-
-      const previousMonth = sortedMonths[currentIndex + 1];
-      const previousData = newData.months[previousMonth];
-
-      // Deep clone the previous month's business units
-      const resetBusinessUnits = JSON.parse(JSON.stringify(previousData.businessUnits));
 
       // Apply to current month, keeping the current reporting period label
       newData.months[newData.currentMonth] = {
@@ -517,15 +517,27 @@ export function useStore() {
     });
   }, []);
 
+  // Generate a random color for new practices
+  const generateRandomColor = () => {
+    const colors = [
+      '#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16',
+      '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+      '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef',
+      '#ec4899', '#f43f5e',
+    ];
+    return colors[Math.floor(Math.random() * colors.length)];
+  };
+
   // Add a new practice
-  const addPractice = useCallback((name, type = 'maturity') => {
+  const addPractice = useCallback((name, type = 'maturity', color = null) => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
       const id = `practice-${Date.now()}`;
       const defaultTarget = type === 'boolean' ? true : 3;
+      const practiceColor = color || generateRandomColor();
 
       // Add to practice definitions
-      newData.practices[id] = { name, type, target: defaultTarget };
+      newData.practices[id] = { name, type, target: defaultTarget, color: practiceColor };
 
       // Add to practice order
       if (!newData.practiceOrder) {
