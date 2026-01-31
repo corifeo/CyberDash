@@ -4,7 +4,7 @@ import {
   Calendar, Users, ChevronRight, RotateCcw,
   Info, ArrowUpRight, ArrowDownRight, Minus,
   Settings, X, Target, Check, Sun, Moon,
-  ChevronUp, ChevronDown, Eye, EyeOff, Scale, Star
+  ChevronUp, ChevronDown, Eye, EyeOff, Scale, Star, Database
 } from 'lucide-react';
 import { useStore } from './store/useStore';
 import {
@@ -376,6 +376,7 @@ function SettingsModal({
   onResetData,
   onMigratePracticeIds,
   hasTimestampIds,
+  onLoadTestData,
   onClose
 }) {
   const [newPracticeName, setNewPracticeName] = useState('');
@@ -498,9 +499,12 @@ function SettingsModal({
         <div className="flex-1 overflow-y-auto p-4">
           {activeTab === 'preset' && (
             <div className="space-y-4">
-              <p className={`text-sm ${st.textHint}`}>
-                Choose a configuration preset or import a custom one. Presets define practices, maturity scales, and thresholds.
-              </p>
+              <div className={`p-3 rounded-lg bg-amber-500/10 border border-amber-500/30`}>
+                <p className={`text-sm text-amber-500`}>
+                  <strong>Warning:</strong> Switching presets will reset all data (BUs, teams, practice values).
+                  Export your data first if you need to keep it.
+                </p>
+              </div>
 
               {/* Available Presets */}
               <div>
@@ -509,14 +513,14 @@ function SettingsModal({
                   {presetList?.map((preset) => (
                     <div
                       key={preset.id}
-                      className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${
+                      className={`p-4 rounded-lg border-2 transition-all ${
                         currentPresetId === preset.id
                           ? `border-cyber-500 ${st.cardBg}`
-                          : `${st.border} ${st.hover}`
+                          : `${st.border} ${st.hover} cursor-pointer`
                       }`}
                       onClick={() => {
                         if (currentPresetId !== preset.id) {
-                          if (confirm(`Switch to "${preset.name}" preset? This will replace your current practices and settings.`)) {
+                          if (confirm(`Switch to "${preset.name}" preset?\n\nWARNING: This will DELETE all your current data (Business Units, Teams, and practice values).\n\nMake sure to export your data first if you need to keep it.`)) {
                             onLoadPreset(preset.id);
                           }
                         }
@@ -529,6 +533,9 @@ function SettingsModal({
                             <span className="ml-2 text-xs bg-cyber-500/20 text-cyber-400 px-2 py-0.5 rounded">Active</span>
                           )}
                         </div>
+                        {currentPresetId !== preset.id && (
+                          <span className={`text-xs ${st.textDim}`}>Click to switch</span>
+                        )}
                       </div>
                       <p className={`text-xs ${st.textHint} mt-1`}>{preset.description}</p>
                     </div>
@@ -553,14 +560,14 @@ function SettingsModal({
                   <div className="flex gap-2 mt-4">
                     <button
                       onClick={() => {
-                        if (confirm('Reset all settings to preset defaults? Your data will be kept.')) {
+                        if (confirm('Reset all settings (practices, colors, thresholds) to preset defaults?\n\nYour data (BUs, teams, practice values) will be kept.')) {
                           onResetToPresetDefaults();
                         }
                       }}
                       className={`px-3 py-1.5 text-sm rounded ${st.cardBgAlt} ${st.textMuted} ${st.hover}`}
                     >
                       <RotateCcw className="w-3 h-3 inline mr-1" />
-                      Reset to Defaults
+                      Reset Settings to Defaults
                     </button>
                   </div>
                 </div>
@@ -1091,6 +1098,25 @@ function SettingsModal({
                 </div>
               </div>
 
+              {/* Test Data */}
+              <div className={`${st.cardBg} rounded-lg p-4`}>
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-2`}>Test Data</h3>
+                <p className={`text-xs ${st.textDim} mb-3`}>
+                  Load sample data with 4 Business Units and 22 teams for testing and demos.
+                </p>
+                <button
+                  onClick={() => {
+                    if (confirm('Load test data? This will replace all current data with sample data (4 BUs, 22 teams).')) {
+                      onLoadTestData();
+                    }
+                  }}
+                  className={`flex items-center justify-center gap-2 px-3 py-2 ${st.cardBgAlt} ${st.hover} rounded text-sm`}
+                >
+                  <Database className="w-4 h-4" />
+                  Load Test Data
+                </button>
+              </div>
+
               {/* Practice ID Migration */}
               {hasTimestampIds && (
                 <div className={`${st.cardBg} rounded-lg p-4 border border-cyber-500/30`}>
@@ -1409,6 +1435,7 @@ export default function App() {
           onResetData={store.resetData}
           onMigratePracticeIds={store.migratePracticeIds}
           hasTimestampIds={store.hasTimestampIds}
+          onLoadTestData={store.loadTestData}
           onClose={() => setShowSettings(false)}
         />
       )}

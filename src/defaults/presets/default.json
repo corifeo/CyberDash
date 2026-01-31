@@ -1,91 +1,91 @@
 {
   "id": "default",
   "name": "Default Security Dashboard",
-  "description": "A general-purpose security practices dashboard with common security practices and maturity levels.",
+  "description": "Security practices dashboard with 10 common security practices - a mix of boolean (yes/no) and maturity-level practices.",
   "version": "1.0",
   "practices": {
-    "secureCoding": {
-      "name": "Secure Coding",
-      "type": "maturity",
-      "target": 3,
-      "color": "#8b5cf6",
-      "description": "Secure coding practices and code review processes"
+    "embeddedSecurityExperts": {
+      "name": "Security Champions",
+      "type": "boolean",
+      "target": true,
+      "color": "#06b6d4",
+      "description": "Dedicated security champions or experts embedded within the team who advocate for security best practices, participate in code reviews, and serve as the first point of contact for security questions."
     },
     "threatModeling": {
       "name": "Threat Modeling",
       "type": "maturity",
-      "target": 3,
-      "color": "#f97316",
-      "description": "Regular threat modeling exercises for systems and features"
+      "target": 2,
+      "color": "#8b5cf6",
+      "description": "A systematic approach to identifying potential security threats and vulnerabilities in system architecture and design. Includes creating data flow diagrams, identifying trust boundaries, and documenting potential attack vectors."
     },
-    "securityTesting": {
-      "name": "Security Testing",
+    "secureCodeReview": {
+      "name": "Secure Code Review",
+      "type": "boolean",
+      "target": true,
+      "color": "#10b981",
+      "description": "Security-focused code reviews performed on all changes before merging to production. Reviews should check for common vulnerabilities, proper input validation, and secure error handling."
+    },
+    "automatedSecurityTesting": {
+      "name": "Automated Security Testing",
       "type": "maturity",
-      "target": 3,
-      "color": "#06b6d4",
-      "description": "Automated and manual security testing coverage"
+      "target": 2,
+      "color": "#f59e0b",
+      "description": "Integration of automated security scanning tools (SAST, DAST, IAST) into CI/CD pipelines to detect vulnerabilities early in the development cycle."
+    },
+    "dependencyScanning": {
+      "name": "Dependency Scanning",
+      "type": "maturity",
+      "target": 2,
+      "color": "#ef4444",
+      "description": "Automated scanning of third-party libraries and dependencies for known vulnerabilities (CVEs) and license compliance issues."
+    },
+    "secretsManagement": {
+      "name": "Secrets Management",
+      "type": "maturity",
+      "target": 2,
+      "color": "#ec4899",
+      "description": "Secure storage, distribution, and rotation of sensitive credentials including API keys, database passwords, certificates, and encryption keys."
+    },
+    "securityRequirements": {
+      "name": "Security Requirements",
+      "type": "maturity",
+      "target": 2,
+      "color": "#3b82f6",
+      "description": "Security requirements are defined, documented, and tracked alongside functional requirements from project inception."
     },
     "vulnerabilityManagement": {
       "name": "Vulnerability Management",
       "type": "maturity",
-      "target": 3,
-      "color": "#ec4899",
-      "description": "Process for identifying, prioritizing, and remediating vulnerabilities"
+      "target": 2,
+      "color": "#14b8a6",
+      "description": "A structured process for tracking, prioritizing, and remediating discovered vulnerabilities within defined SLAs based on severity."
     },
     "incidentResponse": {
       "name": "Incident Response",
-      "type": "maturity",
-      "target": 3,
-      "color": "#ef4444",
-      "description": "Security incident detection and response capabilities"
-    },
-    "securityTraining": {
-      "name": "Security Training",
       "type": "boolean",
       "target": true,
-      "color": "#22c55e",
-      "description": "Team members have completed security awareness training"
+      "color": "#f97316",
+      "description": "A documented and tested incident response plan with clearly defined roles, responsibilities, communication channels, and escalation paths."
     },
-    "dependencyScanning": {
-      "name": "Dependency Scanning",
-      "type": "boolean",
-      "target": true,
-      "color": "#3b82f6",
-      "description": "Automated scanning of third-party dependencies for vulnerabilities"
-    },
-    "secretsManagement": {
-      "name": "Secrets Management",
-      "type": "boolean",
-      "target": true,
-      "color": "#a855f7",
-      "description": "Proper secrets management with no hardcoded credentials"
-    },
-    "accessControl": {
-      "name": "Access Control",
+    "securityTesting": {
+      "name": "Penetration Testing",
       "type": "maturity",
-      "target": 3,
-      "color": "#14b8a6",
-      "description": "Role-based access control and least privilege principles"
-    },
-    "loggingMonitoring": {
-      "name": "Logging & Monitoring",
-      "type": "maturity",
-      "target": 3,
-      "color": "#f59e0b",
-      "description": "Security logging, monitoring, and alerting capabilities"
+      "target": 2,
+      "color": "#6366f1",
+      "description": "Regular penetration testing and security assessments performed by qualified internal teams or external specialists."
     }
   },
   "practiceOrder": [
-    "secureCoding",
+    "embeddedSecurityExperts",
     "threatModeling",
-    "securityTesting",
-    "vulnerabilityManagement",
-    "incidentResponse",
-    "securityTraining",
+    "secureCodeReview",
+    "automatedSecurityTesting",
     "dependencyScanning",
     "secretsManagement",
-    "accessControl",
-    "loggingMonitoring"
+    "securityRequirements",
+    "vulnerabilityManagement",
+    "incidentResponse",
+    "securityTesting"
   ],
   "maturityScale": [
     { "level": -1, "label": "N/A", "short": "N/A", "description": "Not applicable to this team" },

@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import DEFAULT_PRESET from '../defaults/presets/default.json';
 import CMM_PRESET from '../defaults/presets/cmm.json';
 
+// Import test data
+import TEST_DATA from '../defaults/testData.json';
+
 // Available presets
 const PRESETS = {
   default: DEFAULT_PRESET,
@@ -727,40 +730,15 @@ export function useStore() {
     return migratedCount;
   }, []);
 
-  // Load a preset (replaces practices, scale, colors, thresholds but keeps data)
+  // Load a preset (completely resets data with fresh preset configuration)
+  // This is a destructive operation - all existing data will be lost
   const loadPreset = useCallback((presetId) => {
     const preset = PRESETS[presetId];
     if (!preset) return false;
 
-    setData((prev) => {
-      const newData = JSON.parse(JSON.stringify(prev));
-
-      // Update configuration from preset
-      newData.preset = preset.id;
-      newData.maturityScale = preset.maturityScale;
-      newData.practices = preset.practices;
-      newData.practiceOrder = preset.practiceOrder;
-      newData.ragColors = preset.ragColors;
-      newData.teamTypes = preset.teamTypes;
-      newData.buThresholds = preset.thresholds?.bu || { green: 2.5, amber: 1.5 };
-      newData.teamThresholds = preset.thresholds?.team || { green: 0.75, amber: 0.4 };
-
-      // Initialize practices for all existing squads with the new practice set
-      Object.values(newData.months).forEach((month) => {
-        month.businessUnits.forEach((bu) => {
-          bu.squads.forEach((squad) => {
-            const newPractices = {};
-            Object.entries(preset.practices).forEach(([key, p]) => {
-              // Keep existing value if practice exists, otherwise set default
-              newPractices[key] = squad.practices?.[key] ?? (p.type === 'boolean' ? false : 0);
-            });
-            squad.practices = newPractices;
-          });
-        });
-      });
-
-      return newData;
-    });
+    // Build fresh data from preset - this resets everything
+    const freshData = buildDataFromPreset(preset);
+    setData(freshData);
 
     return true;
   }, []);
@@ -872,6 +850,16 @@ export function useStore() {
     }
   }, []);
 
+  // Load test data (pre-populated with 4 BUs and teams)
+  const loadTestData = useCallback(() => {
+    setData((prev) => ({
+      ...prev,
+      currentMonth: TEST_DATA.currentMonth,
+      months: TEST_DATA.months,
+    }));
+    return true;
+  }, []);
+
   // Check if there are any timestamp-based practice IDs that need migration
   const hasTimestampIds = Object.keys(data.practices).some(isTimestampId);
 
@@ -945,6 +933,8 @@ export function useStore() {
     resetToPresetDefaults,
     exportAsPreset,
     importPreset,
+    // Test data
+    loadTestData,
   };
 }
 
