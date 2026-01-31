@@ -2,7 +2,7 @@
 
 A browser-based security practices dashboard for tracking security maturity across business units and teams. All data is stored in localStorage - no server required.
 
-![CyberDash Screenshot](screenshot.png)
+![CyberDash Screenshot](public/screenshot.png)
 
 ## Quick Start
 
