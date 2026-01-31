@@ -198,7 +198,7 @@ export function useStore() {
         practices: Object.fromEntries(
           Object.entries(prev.practices).map(([key, p]) => [
             key,
-            p.type === "boolean" ? false : 1,
+            p.type === "boolean" ? false : 0,
           ])
         ),
         monthlyUpdate: {
