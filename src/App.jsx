@@ -1567,12 +1567,6 @@ export default function App() {
                           <div className="text-4xl font-black text-white leading-none">{meetsTarget}</div>
                           <div className="text-white/50 text-xs mt-1">of {total} at target</div>
                         </div>
-                        {squad.monthlyUpdate.keyMetric.value && (
-                          <div className="text-right">
-                            <div className="text-2xl font-bold text-white/90">{squad.monthlyUpdate.keyMetric.value}</div>
-                            <div className="text-white/50 text-xs">{squad.monthlyUpdate.keyMetric.label}</div>
-                          </div>
-                        )}
                       </div>
 
                       {/* Footer */}
