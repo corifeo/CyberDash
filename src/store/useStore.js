@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Default maturity scale (0-4, where 0 = not started)
+// Default maturity scale (-1 = N/A, 0-4 for levels)
 const DEFAULT_MATURITY_SCALE = [
-  { level: 0, label: "None", short: "N" },
-  { level: 1, label: "Initial", short: "1" },
-  { level: 2, label: "Developing", short: "2" },
-  { level: 3, label: "Defined", short: "3" },
-  { level: 4, label: "Managed", short: "4" },
+  { level: -1, label: "N/A", short: "—", description: "Not applicable - this practice is not relevant for this squad" },
+  { level: 0, label: "None", short: "0", description: "Not started - no formal process or capability exists" },
+  { level: 1, label: "Initial", short: "1", description: "Ad-hoc - basic awareness, inconsistent implementation" },
+  { level: 2, label: "Developing", short: "2", description: "Repeatable - documented process, partial adoption across team" },
+  { level: 3, label: "Defined", short: "3", description: "Established - consistent process, measured and improving" },
+  { level: 4, label: "Managed", short: "4", description: "Optimized - automated, continuously improved, industry-leading" },
 ];
 
 // Default RAG color schemes with hex values
