@@ -132,20 +132,41 @@ export function EditableSelect({ value, onChange, options, className = "" }) {
 }
 
 /**
- * Toggle for boolean practices
+ * Toggle for boolean practices with N/A support
+ * Values: true, false, 'na'
+ * Click cycles: No → Yes → N/A → No
  */
 export function EditableToggle({ value, onChange, label }) {
+  // Cycle: false -> true -> na -> false
+  const handleClick = () => {
+    if (value === 'na') onChange(false);
+    else if (value === true) onChange('na');
+    else onChange(true);
+  };
+
+  const isNA = value === 'na';
+
   return (
     <button
-      onClick={() => onChange(!value)}
-      className={`flex items-center gap-2 px-2 py-1 rounded transition-colors ${
-        value
-          ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
-          : "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+      onClick={handleClick}
+      className={`flex items-center justify-between w-full gap-2 px-2 py-1.5 rounded transition-colors ${
+        isNA
+          ? "bg-slate-500/20 text-slate-400 hover:bg-slate-500/30"
+          : value
+            ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
+            : "bg-red-500/20 text-red-400 hover:bg-red-500/30"
       }`}
+      title={`Click to change: ${isNA ? "N/A → No" : value ? "Yes → N/A" : "No → Yes"}`}
     >
-      <span className={`w-3 h-3 rounded-full ${value ? "bg-emerald-400" : "bg-red-400"}`} />
-      {label}
+      <span className="text-sm font-medium">{label}</span>
+      <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium ${
+        isNA ? "bg-slate-500/30" : value ? "bg-emerald-500/30" : "bg-red-500/30"
+      }`}>
+        <span className={`w-2 h-2 rounded-full ${
+          isNA ? "bg-slate-400" : value ? "bg-emerald-400" : "bg-red-400"
+        }`} />
+        {isNA ? 'N/A' : value ? 'Yes' : 'No'}
+      </span>
     </button>
   );
 }
@@ -153,22 +174,45 @@ export function EditableToggle({ value, onChange, label }) {
 /**
  * Maturity level selector (1-4)
  */
-export function EditableMaturity({ value, onChange, label }) {
+export function EditableMaturity({ value, onChange, label, scale }) {
+  // Use provided scale or default to 0-4
+  const levels = scale ? scale.filter(l => l.level >= 0) : [
+    { level: 0, short: '0' },
+    { level: 1, short: '1' },
+    { level: 2, short: '2' },
+    { level: 3, short: '3' },
+    { level: 4, short: '4' },
+  ];
+
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm text-slate-400">{label}</span>
       <div className="flex gap-1">
-        {[1, 2, 3, 4].map((level) => (
+        {/* N/A button */}
+        <button
+          onClick={() => onChange(-1)}
+          className={`px-2 h-6 rounded text-xs font-medium transition-colors ${
+            value === -1
+              ? "bg-slate-500 text-white"
+              : "bg-slate-700 text-slate-400 hover:bg-slate-600"
+          }`}
+          title="Not Applicable - this practice doesn't apply to this squad"
+        >
+          N/A
+        </button>
+        {/* Level buttons */}
+        {levels.map((level) => (
           <button
-            key={level}
-            onClick={() => onChange(level)}
+            key={level.level}
+            onClick={() => onChange(level.level)}
             className={`w-6 h-6 rounded text-xs font-bold transition-colors ${
-              level <= value
+              value !== -1 && level.level <= value
                 ? "bg-cyber-500 text-white"
                 : "bg-slate-700 text-slate-400 hover:bg-slate-600"
             }`}
+            title={level.label || `Level ${level.level}`}
           >
-            {level}
+            {level.short || level.level}
           </button>
         ))}
       </div>

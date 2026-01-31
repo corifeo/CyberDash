@@ -1,0 +1,72 @@
+{
+  "embeddedSecurityExperts": {
+    "name": "Security Champions",
+    "type": "boolean",
+    "target": true,
+    "color": "#06b6d4",
+    "description": "Dedicated security champions or experts embedded within the team who advocate for security best practices, participate in code reviews, and serve as the first point of contact for security questions. They bridge the gap between development and security teams."
+  },
+  "threatModeling": {
+    "name": "Threat Modeling",
+    "type": "maturity",
+    "target": 2,
+    "color": "#8b5cf6",
+    "description": "A systematic approach to identifying potential security threats and vulnerabilities in system architecture and design. Includes creating data flow diagrams, identifying trust boundaries, and documenting potential attack vectors using frameworks like STRIDE or PASTA."
+  },
+  "secureCodeReview": {
+    "name": "Secure Code Review",
+    "type": "boolean",
+    "target": true,
+    "color": "#10b981",
+    "description": "Security-focused code reviews performed on all changes before merging to production. Reviews should check for common vulnerabilities (injection, XSS, authentication flaws), proper input validation, secure error handling, and adherence to secure coding standards."
+  },
+  "automatedSecurityTesting": {
+    "name": "Automated Security Testing",
+    "type": "maturity",
+    "target": 2,
+    "color": "#f59e0b",
+    "description": "Integration of automated security scanning tools (SAST, DAST, IAST) into CI/CD pipelines to detect vulnerabilities early in the development cycle. Includes static analysis of source code, dynamic testing of running applications, and automated security regression testing."
+  },
+  "dependencyScanning": {
+    "name": "Dependency Scanning",
+    "type": "maturity",
+    "target": 2,
+    "color": "#ef4444",
+    "description": "Automated scanning of third-party libraries and dependencies for known vulnerabilities (CVEs) and license compliance issues. Uses tools like Dependabot, Snyk, or OWASP Dependency-Check to identify and track vulnerable components with defined remediation timelines."
+  },
+  "secretsManagement": {
+    "name": "Secrets Management",
+    "type": "maturity",
+    "target": 2,
+    "color": "#ec4899",
+    "description": "Secure storage, distribution, and rotation of sensitive credentials including API keys, database passwords, certificates, and encryption keys. Uses dedicated secrets management solutions (HashiCorp Vault, AWS Secrets Manager) with proper access controls and audit logging."
+  },
+  "securityRequirements": {
+    "name": "Security Requirements",
+    "type": "maturity",
+    "target": 2,
+    "color": "#3b82f6",
+    "description": "Security requirements are defined, documented, and tracked alongside functional requirements from project inception. Includes compliance requirements, data protection needs, authentication/authorization specifications, and security acceptance criteria for user stories."
+  },
+  "vulnerabilityManagement": {
+    "name": "Vulnerability Management",
+    "type": "maturity",
+    "target": 2,
+    "color": "#14b8a6",
+    "description": "A structured process for tracking, prioritizing, and remediating discovered vulnerabilities within defined SLAs based on severity. Includes vulnerability intake from multiple sources, risk-based prioritization, remediation tracking, and metrics reporting on mean time to remediate."
+  },
+  "incidentResponse": {
+    "name": "Incident Response",
+    "type": "boolean",
+    "target": true,
+    "color": "#f97316",
+    "description": "A documented and tested incident response plan with clearly defined roles, responsibilities, communication channels, and escalation paths. Includes playbooks for common incident types, regular tabletop exercises, post-incident reviews, and integration with monitoring and alerting systems."
+  },
+  "securityTesting": {
+    "name": "Penetration Testing",
+    "type": "maturity",
+    "target": 2,
+    "color": "#6366f1",
+    "description": "Regular penetration testing and security assessments performed by qualified internal teams or external specialists. Covers network, application, and infrastructure testing with documented scope, methodology, findings prioritization, and remediation verification."
+  }
+}

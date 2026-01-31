@@ -1,0 +1,14 @@
+[
+  {
+    "id": "squad",
+    "label": "Squad",
+    "plural": "Squads",
+    "description": "Small cross-functional team working on a specific product area"
+  },
+  {
+    "id": "tribe",
+    "label": "Tribe",
+    "plural": "Tribes",
+    "description": "Collection of squads working on related product areas"
+  }
+]

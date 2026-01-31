@@ -1,6 +1,8 @@
 # CyberDash
 
-A simple browser-based app for managing monthly security practice updates. All data stored in localStorage - no server needed.
+A browser-based security practices dashboard for tracking security maturity across business units and teams. All data is stored in localStorage - no server required.
+
+![CyberDash Screenshot](screenshot.png)
 
 ## Quick Start
 
@@ -9,47 +11,95 @@ npm install
 npm run dev
 ```
 
+Open http://localhost:5173 in your browser.
+
 ## Features
 
-- **Click to Edit** - Click any field to edit inline
-- **Month Management** - Create new months, switch between them
+### Dashboard
+- **Business Unit Overview** - Visual cards showing team status and practice adoption
+- **Team Cards** - RAG status pills with hover tooltips showing details
+- **Practice Adoption** - Pills showing full/partial/none adoption across teams
+- **Light/Dark Mode** - Toggle between themes
+
+### Teams
+- **Configurable Types** - Support for Squads, Tribes, or custom team types
+- **RAG Status** - Green/Amber/Red status with customizable labels and colors
+- **Tracking** - Mark teams as tracked/untracked (untracked = grey, excluded from BU status)
+- **Weighting** - Assign relative importance (0.1-1) for weighted calculations
+
+### Practices
+- **Two Types** - Boolean (Yes/No) or Maturity (0-4 scale)
+- **N/A Support** - Mark practices as not applicable per team
+- **Targets** - Set target levels for each practice
+- **Key Practices** - Star important practices to highlight in tooltips
+- **Custom Colors** - Assign colors for visual identification
+- **Descriptions** - Add detailed descriptions shown on hover
+
+### Maturity Scale
+- **Customizable Levels** - Edit labels (None, Initial, Developing, Defined, Managed)
+- **Descriptions** - Add explanations for each maturity level
+- **N/A Option** - Level -1 for practices not applicable to a team
+
+### Data Management
 - **Auto-save** - All changes saved to localStorage automatically
+- **Month Management** - Create new reporting periods, switch between them
 - **Export/Import** - Download data as JSON, restore from backup
-- **RAG Status** - Auto-calculated from practice scores
+- **Settings Export** - Export just practices, scale, and colors separately
+- **Factory Reset** - Start fresh with default settings
+
+### View/Edit Modes
+- **View Mode** - Read-only dashboard for presentations
+- **Edit Mode** - Full editing capabilities with add/delete controls
 
 ## How to Use
 
+### Initial Setup
+1. Open the app and switch to **Edit** mode
+2. Go to **Settings** to customize practices, maturity scale, and colors
+3. Add your first Business Unit
+4. Add Squads or Tribes within the Business Unit
+
 ### Monthly Workflow
+1. Click **+** next to month selector to create a new reporting period
+2. New month copies team structure, clears update summaries
+3. Click into each team to update practice scores and monthly notes
+4. Use **Reset** button to restore from previous period if needed
 
-1. Click **+** next to month selector to create a new month
-2. Enter month key (e.g., `2025-02`) and label (e.g., `February 2025`)
-3. New month copies structure from previous, clears update fields
-4. Click into each squad to update practices and monthly summary
+### Editing Teams
+- **Practices**: Toggle for Yes/No, click maturity buttons for levels
+- **N/A**: Click N/A button to mark practice as not applicable
+- **Monthly Update**: Add summary of this period and plans for next
+- **Trend**: Set to Improving, Stable, or Needs Attention
 
-### Editing
+## File Structure
 
-- **Text fields**: Click to edit, Enter to save, Escape to cancel
-- **Practices**: Click toggles for boolean, click 1-4 buttons for maturity
-- **Trends**: Select from dropdown
-- **Metrics**: Click each part (label, value, target) to edit
+```
+src/
+  App.jsx           # Main application component
+  main.jsx          # React entry point
+  index.css         # Tailwind CSS styles
+  store/
+    useStore.js     # State management with localStorage
+  components/
+    Editable.jsx    # Inline editing components
+    ui.jsx          # Reusable UI components (cards, pills, tooltips)
+  defaults/
+    practices.json  # Default practice definitions (editable)
+    maturityScale.json  # Default maturity scale levels (editable)
+    teamTypes.json  # Default team types (Squad, Tribe)
+```
 
-### Data Management
+## Customizing Defaults
 
-- **Export**: Downloads all months as JSON file
-- **Import**: Restore from previously exported JSON
-- **Reset**: Clear all data and start fresh
-
-## Scoring
-
-- **Boolean practices**: Yes/No
-- **Maturity practices**: 1-4 scale
-- **RAG Status** (auto-calculated):
-  - Green: ≥75% score
-  - Amber: ≥40% score
-  - Red: <40% score
+Edit the JSON files in `src/defaults/` to customize the default practices, maturity scale, and team types that are loaded when users reset their data or start fresh.
 
 ## Tech Stack
 
 - React 18 + Vite
 - Tailwind CSS
-- localStorage (no server)
+- localStorage for persistence
+- No backend required
+
+## License
+
+MIT
