@@ -322,23 +322,28 @@ export function Legend({ darkMode = true, ragColors, orderedPractices = [], matu
             </div>
           </div>
 
-          {/* Maturity Progress */}
+          {/* Maturity Levels (in team detail) */}
           <div>
-            <p className={`text-xs ${theme.muted} mb-2`}>Maturity Progress</p>
+            <p className={`text-xs ${theme.muted} mb-2`}>Maturity Levels</p>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-emerald-300" />
-                <span className={`text-xs ${theme.text}`}>At or above target</span>
+                <div className="flex gap-0.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-1 ring-emerald-300" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+                </div>
+                <span className={`text-xs ${theme.text}`}>At target (2/3)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-amber-500" />
-                <span className={`text-xs ${theme.text}`}>Close (target - 1)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-slate-500" />
-                <span className={`text-xs ${theme.text}`}>Behind target</span>
+                <div className="flex gap-0.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-600 ring-1 ring-white/30" />
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+                </div>
+                <span className={`text-xs ${theme.text}`}>Below target (1/2)</span>
               </div>
             </div>
+            <p className={`text-[10px] ${theme.dim} mt-1`}>Shown in team detail view</p>
           </div>
         </div>
 

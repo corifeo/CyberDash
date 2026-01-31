@@ -33,9 +33,9 @@ function getMaturityStatus(current, target, type) {
   return 'behind';
 }
 
-// Calculate a team's score for trend comparison
-// Returns a normalized score based on practices (higher = better)
-function calculateTeamScore(squad, practices) {
+// Calculate a team's practice adoption score for trend comparison
+// Returns a normalized score based on practices only (not RAG status)
+function calculateTeamPracticeScore(squad, practices) {
   if (!squad.practices) return 0;
   let score = 0;
   let total = 0;
@@ -55,15 +55,11 @@ function calculateTeamScore(squad, practices) {
     }
   });
 
-  // Also factor in the team's status
-  const statusScore = { green: 3, amber: 2, red: 1, none: 0 };
-  score += (statusScore[squad.status] || 0) * 2; // Weight status more heavily
-  total += 6;
-
   return total > 0 ? score / total : 0;
 }
 
 // Calculate automatic trend for a team by comparing with previous month
+// Based purely on practice adoption, not RAG status
 function calculateAutoTrend(currentSquad, previousMonthData, buId, practices) {
   if (!previousMonthData) return 'stable';
 
@@ -75,8 +71,8 @@ function calculateAutoTrend(currentSquad, previousMonthData, buId, practices) {
   const previousSquad = previousBU.squads?.find(s => s.id === currentSquad.id);
   if (!previousSquad) return 'stable'; // New team = stable
 
-  const currentScore = calculateTeamScore(currentSquad, practices);
-  const previousScore = calculateTeamScore(previousSquad, practices);
+  const currentScore = calculateTeamPracticeScore(currentSquad, practices);
+  const previousScore = calculateTeamPracticeScore(previousSquad, practices);
 
   const diff = currentScore - previousScore;
 
@@ -86,22 +82,23 @@ function calculateAutoTrend(currentSquad, previousMonthData, buId, practices) {
   return 'stable';
 }
 
-// Calculate automatic trend for a BU by comparing team scores
+// Calculate automatic trend for a BU by comparing practice adoption
+// Based purely on practice adoption across all teams, not RAG status
 function calculateBUAutoTrend(currentBU, previousMonthData, practices) {
   if (!previousMonthData) return 'stable';
 
   const previousBU = previousMonthData.businessUnits?.find(b => b.id === currentBU.id);
   if (!previousBU) return 'stable';
 
-  // Calculate average score for current BU
+  // Calculate average practice score for current BU
   const currentSquads = currentBU.squads.filter(s => s.tracked !== false);
   const previousSquads = previousBU.squads?.filter(s => s.tracked !== false) || [];
 
   if (currentSquads.length === 0) return 'stable';
 
-  const currentAvg = currentSquads.reduce((sum, s) => sum + calculateTeamScore(s, practices), 0) / currentSquads.length;
+  const currentAvg = currentSquads.reduce((sum, s) => sum + calculateTeamPracticeScore(s, practices), 0) / currentSquads.length;
   const previousAvg = previousSquads.length > 0
-    ? previousSquads.reduce((sum, s) => sum + calculateTeamScore(s, practices), 0) / previousSquads.length
+    ? previousSquads.reduce((sum, s) => sum + calculateTeamPracticeScore(s, practices), 0) / previousSquads.length
     : currentAvg;
 
   const diff = currentAvg - previousAvg;
@@ -137,6 +134,18 @@ function getPracticeAdoption(squads, definitions) {
     result[practiceId] = { adopted, partial, notAdopted, na, total };
   });
   return result;
+}
+
+// Calculate automatic RAG status for a team based on practice adoption
+// Returns 'green', 'amber', or 'red' based on percentage of practices at target
+function calculateAutoRagStatus(squad, practices) {
+  const { adopted, total } = getAdoptedCount(squad.practices, practices);
+  if (total === 0) return 'amber'; // No practices to measure
+
+  const percentage = adopted / total;
+  if (percentage >= 0.75) return 'green';  // 75%+ at target = green
+  if (percentage >= 0.4) return 'amber';   // 40-74% = amber
+  return 'red';                             // <40% = red
 }
 
 // Stacked Pills Component - Option E visualization
@@ -1304,19 +1313,30 @@ export default function App() {
                 )}
               </h2>
               {(() => {
-                const squadStatus = currentSquad.status || 'red';
+                const squadStatus = currentSquad.tracked === false ? 'none' : (currentSquad.status || 'red');
                 const sc = getStatusInfo(store.ragColors, squadStatus);
-                return editMode ? (
-                  <EditableSelect
-                    value={squadStatus}
-                    onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'status', v)}
-                    options={[
-                      { value: 'green', label: `🟢 ${store.ragColors?.green?.label || 'Strong'}` },
-                      { value: 'amber', label: `🟡 ${store.ragColors?.amber?.label || 'Developing'}` },
-                      { value: 'red', label: `🔴 ${store.ragColors?.red?.label || 'Early Stage'}` },
-                      { value: 'none', label: `⚪ ${store.ragColors?.none?.label || 'Not Tracked'}` },
-                    ]}
-                  />
+                const autoRag = calculateAutoRagStatus(currentSquad, store.practices);
+                return editMode && currentSquad.tracked !== false ? (
+                  <div className="flex items-center gap-2">
+                    <EditableSelect
+                      value={squadStatus}
+                      onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'status', v)}
+                      options={[
+                        { value: 'green', label: `🟢 ${store.ragColors?.green?.label || 'Strong'}` },
+                        { value: 'amber', label: `🟡 ${store.ragColors?.amber?.label || 'Developing'}` },
+                        { value: 'red', label: `🔴 ${store.ragColors?.red?.label || 'Early Stage'}` },
+                      ]}
+                    />
+                    {squadStatus !== autoRag && (
+                      <button
+                        onClick={() => store.updateSquad(currentBU.id, currentSquad.id, 'status', autoRag)}
+                        className={`text-xs px-2 py-1 rounded ${theme.cardAlt} ${theme.muted} hover:text-cyber-400`}
+                        title={`Auto-calculated: ${autoRag} (based on ${getAdoptedCount(currentSquad.practices, store.practices).meetsTarget}/${getAdoptedCount(currentSquad.practices, store.practices).total} at target)`}
+                      >
+                        Reset to auto
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <div
                     className="px-4 py-2 rounded-lg text-sm font-medium text-white"
@@ -1350,7 +1370,15 @@ export default function App() {
                   {/* Tracked Toggle */}
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={() => store.updateSquad(currentBU.id, currentSquad.id, 'tracked', currentSquad.tracked === false)}
+                      onClick={() => {
+                        const willBeTracked = currentSquad.tracked === false;
+                        store.updateSquad(currentBU.id, currentSquad.id, 'tracked', willBeTracked);
+                        // Auto-assign RAG status when enabling tracking
+                        if (willBeTracked) {
+                          const autoStatus = calculateAutoRagStatus(currentSquad, store.practices);
+                          store.updateSquad(currentBU.id, currentSquad.id, 'status', autoStatus);
+                        }
+                      }}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors cursor-pointer hover:opacity-80 ${
                         currentSquad.tracked !== false
                           ? 'bg-cyber-500/20 text-cyber-400'
