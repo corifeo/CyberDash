@@ -235,13 +235,15 @@ function Tooltip({ squad, practices, ragColors, children }) {
   const [show, setShow] = useState(false);
   const { adopted, total } = getAdoptedCount(squad.practices || {}, practices);
   const trend = trendConfig[squad.monthlyUpdate?.trend] || trendConfig.stable;
-  const statusInfo = getStatusInfo(ragColors, squad.status || 'red');
+  // Untracked squads display as grey
+  const displayStatus = squad.tracked === false ? 'none' : (squad.status || 'red');
+  const statusInfo = getStatusInfo(ragColors, displayStatus);
 
   // Get important practices and their values
   const importantPractices = Object.entries(practices)
     .filter(([_, def]) => def.important)
     .map(([id, def]) => {
-      const value = squad.practices[id];
+      const value = (squad.practices || {})[id];
       const target = def.target || 3;
       const adopted = def.type === 'boolean' ? value === true : (value || 0) >= target;
       return { id, name: def.name, type: def.type, value, target, adopted };
@@ -280,15 +282,39 @@ function Tooltip({ squad, practices, ragColors, children }) {
                   <Star className="w-3 h-3 text-amber-400 fill-amber-400" />
                   Key Practices:
                 </p>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {importantPractices.map((p) => (
                     <div key={p.id} className="flex justify-between items-center text-xs">
                       <span className="text-slate-300">{p.name}</span>
-                      <span className={p.adopted ? 'text-green-400' : 'text-red-400'}>
-                        {p.type === 'boolean'
-                          ? (p.value ? 'Yes' : 'No')
-                          : `${p.value || 0}/${p.target}`}
-                      </span>
+                      {p.type === 'boolean' ? (
+                        <span className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                          p.value ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                        }`}>
+                          {p.value ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                        </span>
+                      ) : (
+                        <div className="flex gap-0.5">
+                          {Array.from({ length: p.target }, (_, i) => {
+                            const level = i + 1;
+                            const isFilled = (p.value || 0) >= level;
+                            const isTarget = level === p.target;
+                            return (
+                              <span
+                                key={i}
+                                className={`w-4 h-4 rounded text-[10px] font-bold flex items-center justify-center ${
+                                  isFilled
+                                    ? 'bg-green-500/80 text-white'
+                                    : isTarget
+                                      ? 'bg-red-500/30 text-red-300 ring-1 ring-red-500/50'
+                                      : 'bg-slate-700 text-slate-500'
+                                }`}
+                              >
+                                {level}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -460,6 +486,7 @@ function SettingsModal({
   const [newPracticeName, setNewPracticeName] = useState('');
   const [newPracticeType, setNewPracticeType] = useState('maturity');
   const [activeTab, setActiveTab] = useState('practices');
+  const [showPracticeGuide, setShowPracticeGuide] = useState(false);
   const archiveInputRef = useRef(null);
   const settingsInputRef = useRef(null);
 
@@ -691,6 +718,53 @@ function SettingsModal({
                     Shows in summary
                   </div>
                 </div>
+              </div>
+
+              {/* Practice Guide - Expandable */}
+              <div className={`mt-4 border ${st.border} rounded-lg overflow-hidden`}>
+                <button
+                  onClick={() => setShowPracticeGuide(!showPracticeGuide)}
+                  className={`w-full flex items-center justify-between p-3 ${st.cardBgAlt} ${st.hover} text-left`}
+                >
+                  <span className={`text-sm font-medium ${st.textMuted}`}>
+                    <Info className="w-4 h-4 inline-block mr-2" />
+                    Practice Guide & RAG Calculation
+                  </span>
+                  <ChevronDown className={`w-4 h-4 ${st.textHint} transition-transform ${showPracticeGuide ? 'rotate-180' : ''}`} />
+                </button>
+                {showPracticeGuide && (
+                  <div className={`p-4 space-y-4 ${st.cardBg} border-t ${st.border}`}>
+                    <div>
+                      <h4 className={`text-sm font-medium ${st.textMuted} mb-2`}>How RAG Status is Calculated</h4>
+                      <p className={`text-xs ${st.textDim} leading-relaxed`}>
+                        The RAG (Red/Amber/Green) status is manually set for each squad based on their overall security posture.
+                        Tracked squads contribute to the Business Unit's weighted RAG calculation - squads with higher weights have more influence.
+                        Untracked squads are displayed in grey and don't affect the BU status.
+                      </p>
+                    </div>
+                    <div>
+                      <h4 className={`text-sm font-medium ${st.textMuted} mb-2`}>Practice Definitions</h4>
+                      <div className="space-y-3">
+                        {orderedPractices.map((practice) => (
+                          <div key={practice.id} className={`text-xs ${st.cardBgAlt} rounded p-2`}>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`w-2 h-2 rounded-full ${
+                                practice.type === 'boolean' ? 'bg-cyan-500' : 'bg-purple-500'
+                              }`} />
+                              <span className={`font-medium ${st.text}`}>{practice.name}</span>
+                              <span className={`${st.textDim}`}>
+                                ({practice.type === 'boolean' ? 'Yes/No' : `Target: ${practice.target}`})
+                              </span>
+                            </div>
+                            <p className={`${st.textDim} leading-relaxed pl-4`}>
+                              {practice.description || 'No description available.'}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1512,10 +1586,11 @@ export default function App() {
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {currentBU.squads.map((squad) => {
-                const status = squad.status || 'red';
-                const statusInfo = getStatusInfo(store.ragColors, status);
-                const { adopted, total, meetsTarget } = getAdoptedCount(squad.practices, store.practices);
-                const trend = trendConfig[squad.monthlyUpdate.trend];
+                // Untracked squads display as grey
+                const displayStatus = squad.tracked === false ? 'none' : (squad.status || 'red');
+                const statusInfo = getStatusInfo(store.ragColors, displayStatus);
+                const { adopted, total, meetsTarget } = getAdoptedCount(squad.practices || {}, store.practices);
+                const trend = trendConfig[squad.monthlyUpdate?.trend] || trendConfig.stable;
                 return (
                   <Tooltip key={squad.id} squad={squad} practices={store.practices} ragColors={store.ragColors}>
                     <div

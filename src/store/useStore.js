@@ -45,18 +45,68 @@ const COLOR_PRESETS = {
   },
 };
 
-// Default practice definitions with targets
+// Default practice definitions with targets and descriptions
 const DEFAULT_PRACTICES = {
-  embeddedSecurityExperts: { name: "Security Experts", type: "boolean", target: true },
-  threatModeling: { name: "Threat Modeling", type: "maturity", target: 3 },
-  secureCodeReview: { name: "Code Review", type: "boolean", target: true },
-  automatedSecurityTesting: { name: "Auto Testing", type: "maturity", target: 3 },
-  dependencyScanning: { name: "Dep Scanning", type: "maturity", target: 4 },
-  secretsManagement: { name: "Secrets Mgmt", type: "maturity", target: 3 },
-  securityRequirements: { name: "Requirements", type: "maturity", target: 3 },
-  vulnerabilityManagement: { name: "Vuln Mgmt", type: "maturity", target: 4 },
-  incidentResponse: { name: "Incident Resp", type: "boolean", target: true },
-  securityTesting: { name: "Testing", type: "maturity", target: 3 },
+  embeddedSecurityExperts: {
+    name: "Security Experts",
+    type: "boolean",
+    target: true,
+    description: "Dedicated security champions or experts embedded within the team to guide secure development practices."
+  },
+  threatModeling: {
+    name: "Threat Modeling",
+    type: "maturity",
+    target: 3,
+    description: "Systematic process to identify potential threats and vulnerabilities in system architecture and design."
+  },
+  secureCodeReview: {
+    name: "Code Review",
+    type: "boolean",
+    target: true,
+    description: "Security-focused code reviews performed on changes before merging to identify vulnerabilities."
+  },
+  automatedSecurityTesting: {
+    name: "Auto Testing",
+    type: "maturity",
+    target: 3,
+    description: "Automated security scans (SAST, DAST) integrated into CI/CD pipelines to detect vulnerabilities early."
+  },
+  dependencyScanning: {
+    name: "Dep Scanning",
+    type: "maturity",
+    target: 4,
+    description: "Automated scanning of third-party dependencies for known vulnerabilities and license compliance."
+  },
+  secretsManagement: {
+    name: "Secrets Mgmt",
+    type: "maturity",
+    target: 3,
+    description: "Secure storage and rotation of credentials, API keys, and other sensitive configuration data."
+  },
+  securityRequirements: {
+    name: "Requirements",
+    type: "maturity",
+    target: 3,
+    description: "Security requirements defined and tracked alongside functional requirements from project inception."
+  },
+  vulnerabilityManagement: {
+    name: "Vuln Mgmt",
+    type: "maturity",
+    target: 4,
+    description: "Process for tracking, prioritizing, and remediating discovered vulnerabilities within defined SLAs."
+  },
+  incidentResponse: {
+    name: "Incident Resp",
+    type: "boolean",
+    target: true,
+    description: "Documented incident response plan with defined roles, communication channels, and escalation paths."
+  },
+  securityTesting: {
+    name: "Testing",
+    type: "maturity",
+    target: 3,
+    description: "Regular penetration testing and security assessments performed by internal or external teams."
+  },
 };
 
 // Default practice order
@@ -74,38 +124,7 @@ const DEFAULT_DATA = {
   months: {
     "2025-01": {
       reportingPeriod: "January 2025",
-      businessUnits: [
-        {
-          id: "bu-1",
-          name: "Business Unit 1",
-          squads: [
-            {
-              id: "squad-1",
-              name: "Squad 1",
-              status: "amber", // Manual RAG status: green, amber, red, none
-              tracked: true, // Whether this squad counts toward BU RAG
-              weight: 1, // Weight for BU RAG calculation (default 1)
-              practices: {
-                embeddedSecurityExperts: false,
-                threatModeling: 1,
-                secureCodeReview: false,
-                automatedSecurityTesting: 1,
-                dependencyScanning: 1,
-                secretsManagement: 1,
-                securityRequirements: 1,
-                vulnerabilityManagement: 1,
-                incidentResponse: false,
-                securityTesting: 1,
-              },
-              monthlyUpdate: {
-                summary: "Click to edit this month's update",
-                nextPeriod: "Click to edit next period plans",
-                trend: "stable",
-              },
-            },
-          ],
-        },
-      ],
+      businessUnits: [],
     },
   },
 };
