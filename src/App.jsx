@@ -1865,34 +1865,35 @@ export default function App() {
                   <div
                     key={bu.id}
                     onClick={() => setSelectedBU(bu.id)}
-                    className={`${theme.card} border rounded-xl p-5 cursor-pointer transition-all hover:shadow-lg hover:scale-[1.01]`}
+                    className="rounded-xl p-5 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                    style={{ backgroundColor: statusInfo.hex }}
                   >
-                    {/* Card Header with status indicator */}
+                    {/* Card Header */}
                     <div className="flex items-start justify-between mb-4">
-                      <h3 className="text-lg font-bold">{bu.name}</h3>
-                      <div
-                        className="px-2 py-1 rounded text-xs font-medium text-white"
-                        style={{ backgroundColor: statusInfo.hex }}
-                      >
+                      <h3 className="text-xl font-bold text-white">{bu.name}</h3>
+                      <div className="px-2 py-1 rounded text-xs font-medium bg-white/20 text-white">
                         {statusInfo.label}
                       </div>
                     </div>
 
                     {/* Teams Section */}
                     <div className="mb-4">
-                      <p className={`text-xs ${theme.muted} mb-2`}>Teams ({bu.squads.length})</p>
+                      <p className="text-xs text-white/50 mb-2">Teams ({bu.squads.length})</p>
                       <div className="flex flex-wrap gap-1.5">
                         {bu.squads.map((squad) => {
                           const squadStatus = squad.tracked === false ? 'none' : (squad.status || 'red');
                           const squadInfo = getStatusInfo(store.ragColors, squadStatus);
+                          // Use white-based opacity for pills on colored background
+                          const pillOpacity = squadStatus === 'green' ? 'bg-white/90' :
+                                             squadStatus === 'amber' ? 'bg-white/70' :
+                                             squadStatus === 'red' ? 'bg-white/40' : 'bg-white/20 border border-white/30';
                           return (
                             <div
                               key={squad.id}
                               className="group relative"
                             >
                               <div
-                                className="w-4 h-4 rounded-full cursor-help"
-                                style={{ backgroundColor: squadInfo.hex }}
+                                className={`w-4 h-4 rounded-full cursor-help ${pillOpacity}`}
                                 title={`${squad.name} (${getTeamLabel(squad)}): ${squadInfo.label}`}
                               />
                               {/* Hover tooltip */}
@@ -1908,7 +1909,7 @@ export default function App() {
 
                     {/* Practices Section */}
                     <div>
-                      <p className={`text-xs ${theme.muted} mb-2`}>Practices</p>
+                      <p className="text-xs text-white/50 mb-2">Practices</p>
                       <div className="flex flex-wrap gap-1.5">
                         {store.orderedPractices.map((practice) => {
                           const adoption = practiceAdoption[practice.id] || { adopted: 0, partial: 0, notAdopted: 0, na: 0, total: 0 };
@@ -1916,16 +1917,16 @@ export default function App() {
                           const allAdopted = adoption.total > 0 && adoption.adopted === adoption.total;
                           const someAdopted = adoption.adopted > 0 || adoption.partial > 0;
 
-                          // Determine pill color based on adoption
+                          // Use white-based opacity for pills on colored background
                           let pillClass = '';
                           if (allNA) {
-                            pillClass = 'bg-slate-500/30 border border-slate-500/50'; // Grey for all N/A
+                            pillClass = 'bg-white/10 border border-white/20';
                           } else if (allAdopted) {
-                            pillClass = 'bg-emerald-500'; // Green for full adoption
+                            pillClass = 'bg-white/90';
                           } else if (someAdopted) {
-                            pillClass = 'bg-amber-500'; // Amber for partial
+                            pillClass = 'bg-white/50';
                           } else {
-                            pillClass = 'bg-red-500/60'; // Red for none
+                            pillClass = 'bg-white/25';
                           }
 
                           return (
@@ -1935,7 +1936,6 @@ export default function App() {
                             >
                               <div
                                 className={`w-4 h-4 rounded-full cursor-help ${pillClass}`}
-                                style={!allNA && practice.color ? { backgroundColor: allAdopted ? practice.color : undefined } : undefined}
                                 title={`${practice.name}: ${adoption.adopted}/${adoption.total} adopted`}
                               />
                               {/* Hover tooltip */}

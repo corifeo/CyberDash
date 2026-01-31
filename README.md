@@ -82,7 +82,16 @@ src/
     useStore.js     # State management with localStorage
   components/
     Editable.jsx    # Inline editing components
+    ui.jsx          # Reusable UI components (cards, pills, tooltips)
+  defaults/
+    practices.json  # Default practice definitions (editable)
+    maturityScale.json  # Default maturity scale levels (editable)
+    teamTypes.json  # Default team types (Squad, Tribe)
 ```
+
+## Customizing Defaults
+
+Edit the JSON files in `src/defaults/` to customize the default practices, maturity scale, and team types that are loaded when users reset their data or start fresh.
 
 ## Tech Stack
 
