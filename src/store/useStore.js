@@ -64,6 +64,36 @@ const DEFAULT_DATA = {
 
 const STORAGE_KEY = "cyberdash-data";
 
+// Generate a URL-friendly slug from a practice name
+function generateSlug(name, existingIds = []) {
+  // Convert to camelCase slug
+  let slug = name
+    .trim()
+    .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
+    .replace(/\s+(.)/g, (_, c) => c.toUpperCase()) // camelCase
+    .replace(/\s/g, '') // Remove remaining spaces
+    .replace(/^(.)/, (_, c) => c.toLowerCase()); // lowercase first char
+
+  // Ensure slug is not empty
+  if (!slug) {
+    slug = 'practice';
+  }
+
+  // Handle duplicates by appending a number
+  let finalSlug = slug;
+  let counter = 2;
+  while (existingIds.includes(finalSlug)) {
+    finalSlug = `${slug}${counter++}`;
+  }
+
+  return finalSlug;
+}
+
+// Check if an ID looks like a timestamp-based ID
+function isTimestampId(id) {
+  return /^practice-\d{13,}$/.test(id);
+}
+
 // Load from localStorage or use defaults
 function loadData() {
   try {
@@ -467,7 +497,9 @@ export function useStore() {
   const addPractice = useCallback((name, type = 'maturity', color = null) => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
-      const id = `practice-${Date.now()}`;
+      // Generate a slug-based ID from the practice name
+      const existingIds = Object.keys(newData.practices);
+      const id = generateSlug(name, existingIds);
       const defaultTarget = type === 'boolean' ? true : 3;
       const practiceColor = color || generateRandomColor();
 
@@ -615,6 +647,71 @@ export function useStore() {
     });
   }, []);
 
+  // Migrate practice IDs from timestamp-based to slug-based
+  // Returns { migrated: number, total: number } with count of migrated practices
+  const migratePracticeIds = useCallback(() => {
+    let migratedCount = 0;
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+
+      // Find all practices with timestamp IDs
+      const oldToNewMap = {};
+      const existingIds = [];
+
+      // First pass: collect non-timestamp IDs and build migration map
+      Object.entries(newData.practices).forEach(([id, practice]) => {
+        if (isTimestampId(id)) {
+          // Generate new slug from practice name
+          const newId = generateSlug(practice.name, existingIds);
+          oldToNewMap[id] = newId;
+          existingIds.push(newId);
+          migratedCount++;
+        } else {
+          existingIds.push(id);
+        }
+      });
+
+      // If nothing to migrate, return unchanged
+      if (Object.keys(oldToNewMap).length === 0) {
+        return prev;
+      }
+
+      // Second pass: update practices object with new IDs
+      const newPractices = {};
+      Object.entries(newData.practices).forEach(([id, practice]) => {
+        const newId = oldToNewMap[id] || id;
+        newPractices[newId] = practice;
+      });
+      newData.practices = newPractices;
+
+      // Update practice order
+      if (newData.practiceOrder) {
+        newData.practiceOrder = newData.practiceOrder.map(id => oldToNewMap[id] || id);
+      }
+
+      // Update all squad practices in all months
+      Object.values(newData.months).forEach((month) => {
+        month.businessUnits.forEach((bu) => {
+          bu.squads.forEach((squad) => {
+            const newPracticeValues = {};
+            Object.entries(squad.practices || {}).forEach(([id, value]) => {
+              const newId = oldToNewMap[id] || id;
+              newPracticeValues[newId] = value;
+            });
+            squad.practices = newPracticeValues;
+          });
+        });
+      });
+
+      return newData;
+    });
+
+    return migratedCount;
+  }, []);
+
+  // Check if there are any timestamp-based practice IDs that need migration
+  const hasTimestampIds = Object.keys(data.practices).some(isTimestampId);
+
   // Get ordered practices
   const practiceOrder = data.practiceOrder || Object.keys(data.practices);
   const orderedPractices = practiceOrder
@@ -665,6 +762,8 @@ export function useStore() {
     updateRagColor,
     updateRagLabel,
     reorderPractice,
+    migratePracticeIds,
+    hasTimestampIds,
   };
 }
 

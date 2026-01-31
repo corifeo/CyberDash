@@ -230,6 +230,8 @@ function SettingsModal({
   onExportSettings,
   onImportSettings,
   onResetData,
+  onMigratePracticeIds,
+  hasTimestampIds,
   onClose
 }) {
   const [newPracticeName, setNewPracticeName] = useState('');
@@ -740,6 +742,29 @@ function SettingsModal({
                 </div>
               </div>
 
+              {/* Practice ID Migration */}
+              {hasTimestampIds && (
+                <div className={`${st.cardBg} rounded-lg p-4 border border-cyber-500/30`}>
+                  <h3 className={`text-sm font-medium text-cyber-400 mb-2`}>Migrate Practice IDs</h3>
+                  <p className={`text-xs ${st.textDim} mb-3`}>
+                    Convert timestamp-based practice IDs to human-readable slugs based on practice names.
+                    This makes exported data easier to read and manually edit.
+                  </p>
+                  <button
+                    onClick={() => {
+                      if (confirm('Migrate all practice IDs to human-readable slugs?\n\nThis will convert IDs like "practice-1738350000000" to slugs like "threatModeling".\n\nThis is safe but cannot be undone.')) {
+                        const count = onMigratePracticeIds();
+                        alert(`Migrated ${count} practice ID(s) to human-readable slugs.`);
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 px-3 py-2 bg-cyber-500/20 hover:bg-cyber-500/30 text-cyber-400 border border-cyber-500/30 rounded text-sm w-full"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Migrate to Readable IDs
+                  </button>
+                </div>
+              )}
+
               {/* Hard Reset */}
               <div className={`border border-red-500/30 rounded-lg p-4`}>
                 <h3 className={`text-sm font-medium text-red-400 mb-2`}>Factory Reset</h3>
@@ -1010,6 +1035,8 @@ export default function App() {
           onExportSettings={store.exportSettings}
           onImportSettings={store.importSettings}
           onResetData={store.resetData}
+          onMigratePracticeIds={store.migratePracticeIds}
+          hasTimestampIds={store.hasTimestampIds}
           onClose={() => setShowSettings(false)}
         />
       )}
