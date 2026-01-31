@@ -275,7 +275,7 @@ export function Legend({ darkMode = true, ragColors, orderedPractices = [], matu
 
           {/* Trend */}
           <div>
-            <p className={`text-xs ${theme.muted} mb-2`}>Trend (manual)</p>
+            <p className={`text-xs ${theme.muted} mb-2`}>Trend</p>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <ArrowUpRight className="w-4 h-4 text-emerald-500" />
@@ -287,10 +287,10 @@ export function Legend({ darkMode = true, ragColors, orderedPractices = [], matu
               </div>
               <div className="flex items-center gap-2">
                 <ArrowDownRight className="w-4 h-4 text-amber-500" />
-                <span className={`text-xs ${theme.text}`}>Needs Attention</span>
+                <span className={`text-xs ${theme.text}`}>Declining</span>
               </div>
             </div>
-            <p className={`text-[10px] ${theme.dim} mt-1`}>Set per team in edit mode</p>
+            <p className={`text-[10px] ${theme.dim} mt-1`}>Auto-calculated vs previous month</p>
           </div>
 
           {/* Practice Adoption (on BU cards) */}
@@ -298,19 +298,25 @@ export function Legend({ darkMode = true, ragColors, orderedPractices = [], matu
             <p className={`text-xs ${theme.muted} mb-2`}>Practice Adoption</p>
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-emerald-500" />
+                <span className={`w-3 h-3 rounded-full ${darkMode ? 'bg-white/90' : 'bg-slate-700'}`} />
                 <span className={`text-xs ${theme.text}`}>All teams at target</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-amber-500" />
+                <span
+                  className="w-3 h-3 rounded-full"
+                  style={{ background: darkMode
+                    ? 'linear-gradient(to top, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0.25) 50%)'
+                    : 'linear-gradient(to top, rgba(51,65,85,0.9) 50%, rgba(51,65,85,0.3) 50%)'
+                  }}
+                />
                 <span className={`text-xs ${theme.text}`}>Partial adoption</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-red-400" />
+                <span className={`w-3 h-3 rounded-full ${darkMode ? 'bg-white/25' : 'bg-slate-400/40'}`} />
                 <span className={`text-xs ${theme.text}`}>No teams at target</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-slate-400" />
+                <span className={`w-3 h-3 rounded-full ${darkMode ? 'bg-white/10 border border-white/30' : 'bg-slate-200 border border-slate-300'}`} />
                 <span className={`text-xs ${theme.text}`}>N/A for all teams</span>
               </div>
             </div>
@@ -340,7 +346,8 @@ export function Legend({ darkMode = true, ragColors, orderedPractices = [], matu
         <div className={`mt-4 pt-3 border-t ${theme.border}`}>
           <p className={`text-xs ${theme.dim}`}>
             <strong className={theme.muted}>BU Status:</strong> Based on team statuses (Green=3, Amber=2, Red=1).
-            Improving teams add +0.5 bonus. Score ≥{buThresholds.green} = Green, ≥{buThresholds.amber} = Amber, else Red.
+            Score ≥{buThresholds.green} = Green, ≥{buThresholds.amber} = Amber, else Red.
+            Trend is auto-calculated by comparing with previous month.
           </p>
         </div>
       </div>

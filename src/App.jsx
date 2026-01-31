@@ -33,6 +33,84 @@ function getMaturityStatus(current, target, type) {
   return 'behind';
 }
 
+// Calculate a team's score for trend comparison
+// Returns a normalized score based on practices (higher = better)
+function calculateTeamScore(squad, practices) {
+  if (!squad.practices) return 0;
+  let score = 0;
+  let total = 0;
+
+  Object.entries(squad.practices).forEach(([practiceId, value]) => {
+    const def = practices[practiceId];
+    if (!def) return;
+
+    if (def.type === 'boolean') {
+      if (value === 'na') return; // Skip N/A
+      total += 1;
+      if (value === true) score += 1;
+    } else {
+      if (value === -1) return; // Skip N/A
+      total += 4; // Max maturity is typically 4
+      score += Math.max(0, value);
+    }
+  });
+
+  // Also factor in the team's status
+  const statusScore = { green: 3, amber: 2, red: 1, none: 0 };
+  score += (statusScore[squad.status] || 0) * 2; // Weight status more heavily
+  total += 6;
+
+  return total > 0 ? score / total : 0;
+}
+
+// Calculate automatic trend for a team by comparing with previous month
+function calculateAutoTrend(currentSquad, previousMonthData, buId, practices) {
+  if (!previousMonthData) return 'stable';
+
+  // Find the same BU in previous month
+  const previousBU = previousMonthData.businessUnits?.find(b => b.id === buId);
+  if (!previousBU) return 'stable';
+
+  // Find the same squad in previous month
+  const previousSquad = previousBU.squads?.find(s => s.id === currentSquad.id);
+  if (!previousSquad) return 'stable'; // New team = stable
+
+  const currentScore = calculateTeamScore(currentSquad, practices);
+  const previousScore = calculateTeamScore(previousSquad, practices);
+
+  const diff = currentScore - previousScore;
+
+  // Use a threshold to determine significant change
+  if (diff > 0.05) return 'improving';
+  if (diff < -0.05) return 'declining';
+  return 'stable';
+}
+
+// Calculate automatic trend for a BU by comparing team scores
+function calculateBUAutoTrend(currentBU, previousMonthData, practices) {
+  if (!previousMonthData) return 'stable';
+
+  const previousBU = previousMonthData.businessUnits?.find(b => b.id === currentBU.id);
+  if (!previousBU) return 'stable';
+
+  // Calculate average score for current BU
+  const currentSquads = currentBU.squads.filter(s => s.tracked !== false);
+  const previousSquads = previousBU.squads?.filter(s => s.tracked !== false) || [];
+
+  if (currentSquads.length === 0) return 'stable';
+
+  const currentAvg = currentSquads.reduce((sum, s) => sum + calculateTeamScore(s, practices), 0) / currentSquads.length;
+  const previousAvg = previousSquads.length > 0
+    ? previousSquads.reduce((sum, s) => sum + calculateTeamScore(s, practices), 0) / previousSquads.length
+    : currentAvg;
+
+  const diff = currentAvg - previousAvg;
+
+  if (diff > 0.03) return 'improving';
+  if (diff < -0.03) return 'declining';
+  return 'stable';
+}
+
 // Calculate practice adoption across all squads in a BU
 // Returns: { practiceId: { adopted: number, partial: number, notAdopted: number, na: number, total: number } }
 function getPracticeAdoption(squads, definitions) {
@@ -918,6 +996,16 @@ export default function App() {
   const [newMonthLabel, setNewMonthLabel] = useState('');
 
   const monthData = store.currentMonthData;
+
+  // Get previous month data for automatic trend calculation
+  const previousMonthData = useMemo(() => {
+    const sortedMonths = store.months; // Already sorted descending
+    const currentIndex = sortedMonths.indexOf(store.currentMonth);
+    if (currentIndex < 0 || currentIndex >= sortedMonths.length - 1) return null;
+    const previousMonthKey = sortedMonths[currentIndex + 1];
+    return store.data?.months?.[previousMonthKey] || null;
+  }, [store.months, store.currentMonth, store.data]);
+
   if (!monthData) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
@@ -1392,22 +1480,17 @@ export default function App() {
                 </div>
                 <div>
                   <label className={`block text-sm ${theme.muted} mb-1`}>Trend</label>
-                  {!editMode ? (
-                    <div className={`flex items-center gap-2 ${trendConfig[currentSquad.monthlyUpdate.trend].color}`}>
-                      {(() => { const T = trendConfig[currentSquad.monthlyUpdate.trend]; return <T.Icon className="w-5 h-5" />; })()}
-                      <span className="text-sm font-medium">{trendConfig[currentSquad.monthlyUpdate.trend].label}</span>
-                    </div>
-                  ) : (
-                    <EditableSelect
-                      value={currentSquad.monthlyUpdate.trend}
-                      onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'monthlyUpdate.trend', v)}
-                      options={[
-                        { value: 'improving', label: '↗ Improving' },
-                        { value: 'stable', label: '→ Stable' },
-                        { value: 'declining', label: '↘ Needs Attention' },
-                      ]}
-                    />
-                  )}
+                  {(() => {
+                    const autoTrend = calculateAutoTrend(currentSquad, previousMonthData, currentBU.id, store.practices);
+                    const trendInfo = trendConfig[autoTrend] || trendConfig.stable;
+                    return (
+                      <div className={`flex items-center gap-2 ${trendInfo.color}`}>
+                        <trendInfo.Icon className="w-5 h-5" />
+                        <span className="text-sm font-medium">{trendInfo.label}</span>
+                        <span className={`text-xs ${theme.dim}`}>(auto)</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
@@ -1590,13 +1673,21 @@ export default function App() {
                   return typeInfo?.label || 'Squad';
                 };
 
-                // Get trend indicator for team
+                // Get automatic trend for a team (comparing with previous month)
+                const getTeamAutoTrend = (squad) => {
+                  return calculateAutoTrend(squad, previousMonthData, bu.id, store.practices);
+                };
+
+                // Get trend icon for a team
                 const getTrendIcon = (squad) => {
-                  const trend = squad.monthlyUpdate?.trend || 'stable';
+                  const trend = getTeamAutoTrend(squad);
                   if (trend === 'improving') return '↗';
-                  if (trend === 'declining' || trend === 'needs-attention') return '↘';
+                  if (trend === 'declining') return '↘';
                   return null;
                 };
+
+                // Calculate BU-level trend
+                const buTrend = calculateBUAutoTrend(bu, previousMonthData, store.practices);
 
                 return (
                   <div
@@ -1613,30 +1704,26 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Status Summary - shows calculation breakdown */}
-                    <div className="flex items-center gap-3 mb-4 text-xs text-white/70">
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        {statusDetails.green}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                        {statusDetails.amber}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-red-400"></span>
-                        {statusDetails.red}
-                      </span>
-                      {statusDetails.improving > 0 && (
-                        <span className="text-emerald-200" title={`${statusDetails.improving} team(s) with improving trend`}>
-                          ↗ {statusDetails.improving} improving
+                    {/* BU Trend Indicator */}
+                    <div className="flex items-center gap-2 mb-4 text-sm">
+                      {buTrend === 'improving' && (
+                        <span className="flex items-center gap-1 text-emerald-200" title="Improving compared to previous month">
+                          <ArrowUpRight className="w-4 h-4" /> Improving
                         </span>
                       )}
-                      {statusDetails.problems > 0 && (
-                        <span className="text-red-200" title={`${statusDetails.problems} team(s) at Red/Amber status without improving trend`}>
-                          ⚠ {statusDetails.problems} at risk
+                      {buTrend === 'stable' && (
+                        <span className="flex items-center gap-1 text-white/60" title="Stable compared to previous month">
+                          <Minus className="w-4 h-4" /> Stable
                         </span>
                       )}
+                      {buTrend === 'declining' && (
+                        <span className="flex items-center gap-1 text-amber-200" title="Declining compared to previous month">
+                          <ArrowDownRight className="w-4 h-4" /> Declining
+                        </span>
+                      )}
+                      <span className="text-white/40 text-xs">
+                        ({bu.squads.filter(s => s.tracked !== false).length} teams)
+                      </span>
                     </div>
 
                     {/* Teams Section - Team Status */}
@@ -1665,7 +1752,7 @@ export default function App() {
                               {/* Hover tooltip */}
                               <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity">
                                 <div className="font-medium">{squad.name}</div>
-                                <div className="text-slate-400">{getTeamLabel(squad)} • {squadInfo.label} {trendIcon && `• ${squad.monthlyUpdate?.trend || 'stable'}`}</div>
+                                <div className="text-slate-400">{getTeamLabel(squad)} • {squadInfo.label} {trendIcon && `• ${getTeamAutoTrend(squad)}`}</div>
                               </div>
                             </div>
                           );
