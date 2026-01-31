@@ -3,7 +3,8 @@ import {
   Shield, Plus, Trash2, Download, Upload,
   Calendar, Users, ChevronRight, RotateCcw,
   Info, ArrowUpRight, ArrowDownRight, Minus,
-  Settings, X, Target, Check, Sun, Moon
+  Settings, X, Target, Check, Sun, Moon,
+  ChevronUp, ChevronDown, GripVertical
 } from 'lucide-react';
 import { useStore } from './store/useStore';
 import {
@@ -110,27 +111,38 @@ function BooleanPill({ value, target, compact = false }) {
   );
 }
 
-// Default RAG colors (fallback if store not loaded)
-const DEFAULT_STATUS_BG = {
-  green: 'bg-emerald-600',
-  amber: 'bg-amber-600',
-  red: 'bg-red-600',
+// Default hex colors for status
+const DEFAULT_HEX_COLORS = {
+  green: '#059669',
+  amber: '#d97706',
+  red: '#dc2626',
+  none: '#64748b',
 };
 
-const DEFAULT_STATUS_HOVER = {
-  green: 'hover:bg-emerald-700',
-  amber: 'hover:bg-amber-700',
-  red: 'hover:bg-red-700',
-};
-
-// Helper to get status colors from ragColors
-function getStatusClasses(ragColors, status) {
+// Helper to get status info from ragColors
+function getStatusInfo(ragColors, status) {
   const colors = ragColors?.[status];
+  const hex = colors?.hex || DEFAULT_HEX_COLORS[status] || DEFAULT_HEX_COLORS.none;
   return {
-    bg: colors?.bg || DEFAULT_STATUS_BG[status],
-    hover: colors?.hover || DEFAULT_STATUS_HOVER[status],
-    label: colors?.label || (status === 'green' ? 'Strong' : status === 'amber' ? 'Developing' : 'Early Stage'),
+    hex,
+    hoverHex: adjustColor(hex, -15), // Darken for hover
+    label: colors?.label || (
+      status === 'green' ? 'Strong' :
+      status === 'amber' ? 'Developing' :
+      status === 'red' ? 'Early Stage' :
+      'Not Tracked'
+    ),
   };
+}
+
+// Darken/lighten a hex color
+function adjustColor(hex, percent) {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = Math.max(0, Math.min(255, (num >> 16) + amt));
+  const G = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amt));
+  const B = Math.max(0, Math.min(255, (num & 0x0000FF) + amt));
+  return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
 }
 
 // Better trend config with colors and icons
@@ -192,7 +204,7 @@ function Tooltip({ squad, practices, ragColors, children }) {
   const [show, setShow] = useState(false);
   const { adopted, total } = getAdoptedCount(squad.practices, practices);
   const trend = trendConfig[squad.monthlyUpdate.trend];
-  const statusClasses = getStatusClasses(ragColors, squad.status || 'red');
+  const statusInfo = getStatusInfo(ragColors, squad.status || 'red');
 
   return (
     <div
@@ -206,8 +218,8 @@ function Tooltip({ squad, practices, ragColors, children }) {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-slate-400">Status</span>
-              <span className={`font-semibold ${squad.status === 'green' ? 'text-emerald-400' : squad.status === 'amber' ? 'text-amber-400' : 'text-red-400'}`}>
-                {statusClasses.label}
+              <span className="font-semibold" style={{ color: statusInfo.hex }}>
+                {statusInfo.label}
               </span>
             </div>
             <div className="flex justify-between items-center">
@@ -247,97 +259,115 @@ function Tooltip({ squad, practices, ragColors, children }) {
 }
 
 // Toggle Switch Component
-function ToggleSwitch({ checked, onChange, labelLeft, labelRight }) {
+function ToggleSwitch({ checked, onChange, labelLeft, labelRight, darkMode = true }) {
+  const activeClass = darkMode ? 'font-medium' : 'font-medium text-slate-900';
+  const inactiveClass = darkMode ? 'text-slate-400' : 'text-slate-500';
+  const trackClass = checked ? 'bg-cyber-500' : (darkMode ? 'bg-slate-600' : 'bg-slate-300');
+
   return (
     <div className="flex items-center gap-2">
-      <span className={`text-sm ${!checked ? 'text-white font-medium' : 'text-slate-400'}`}>{labelLeft}</span>
+      <span className={`text-sm ${!checked ? activeClass : inactiveClass}`}>{labelLeft}</span>
       <button
         onClick={() => onChange(!checked)}
-        className={`relative w-12 h-6 rounded-full transition-colors ${checked ? 'bg-cyber-500' : 'bg-slate-600'}`}
+        className={`relative w-12 h-6 rounded-full transition-colors ${trackClass}`}
       >
         <span
-          className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${checked ? 'left-7' : 'left-1'}`}
+          className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform shadow ${checked ? 'left-7' : 'left-1'}`}
         />
       </button>
-      <span className={`text-sm ${checked ? 'text-white font-medium' : 'text-slate-400'}`}>{labelRight}</span>
+      <span className={`text-sm ${checked ? activeClass : inactiveClass}`}>{labelRight}</span>
     </div>
   );
 }
 
 // Legend Component
-function Legend() {
+function Legend({ darkMode = true, ragColors }) {
+  const theme = darkMode ? {
+    bg: 'bg-slate-800/50 border-slate-700',
+    muted: 'text-slate-400',
+    text: 'text-slate-300',
+  } : {
+    bg: 'bg-slate-50 border-slate-200',
+    muted: 'text-slate-500',
+    text: 'text-slate-600',
+  };
+
   return (
-    <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+    <div className={`${theme.bg} rounded-lg p-4 border`}>
       <div className="flex items-center gap-2 mb-3">
-        <Info className="w-4 h-4 text-slate-400" />
-        <span className="text-sm font-medium text-slate-300">Legend</span>
+        <Info className={`w-4 h-4 ${theme.muted}`} />
+        <span className={`text-sm font-medium ${theme.text}`}>Legend</span>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
-          <p className="text-xs text-slate-400 mb-2">Card Status</p>
+          <p className={`text-xs ${theme.muted} mb-2`}>Card Status</p>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded bg-emerald-500" />
-              <span className="text-xs text-slate-300">Strong</span>
+              <span className="w-3 h-3 rounded" style={{ backgroundColor: ragColors?.green?.hex || '#059669' }} />
+              <span className={`text-xs ${theme.text}`}>{ragColors?.green?.label || 'Strong'}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded bg-amber-500" />
-              <span className="text-xs text-slate-300">Developing</span>
+              <span className="w-3 h-3 rounded" style={{ backgroundColor: ragColors?.amber?.hex || '#d97706' }} />
+              <span className={`text-xs ${theme.text}`}>{ragColors?.amber?.label || 'Developing'}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded bg-red-500" />
-              <span className="text-xs text-slate-300">Early Stage</span>
+              <span className="w-3 h-3 rounded" style={{ backgroundColor: ragColors?.red?.hex || '#dc2626' }} />
+              <span className={`text-xs ${theme.text}`}>{ragColors?.red?.label || 'Early Stage'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded" style={{ backgroundColor: ragColors?.none?.hex || '#64748b' }} />
+              <span className={`text-xs ${theme.text}`}>{ragColors?.none?.label || 'Not Tracked'}</span>
             </div>
           </div>
         </div>
         <div>
-          <p className="text-xs text-slate-400 mb-2">Trend</p>
+          <p className={`text-xs ${theme.muted} mb-2`}>Trend</p>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <ArrowUpRight className="w-4 h-4 text-emerald-400" />
-              <span className="text-xs text-slate-300">Improving</span>
+              <span className={`text-xs ${theme.text}`}>Improving</span>
             </div>
             <div className="flex items-center gap-2">
-              <Minus className="w-4 h-4 text-slate-400" />
-              <span className="text-xs text-slate-300">Stable</span>
+              <Minus className={`w-4 h-4 ${theme.muted}`} />
+              <span className={`text-xs ${theme.text}`}>Stable</span>
             </div>
             <div className="flex items-center gap-2">
               <ArrowDownRight className="w-4 h-4 text-amber-400" />
-              <span className="text-xs text-slate-300">Attention</span>
+              <span className={`text-xs ${theme.text}`}>Attention</span>
             </div>
           </div>
         </div>
         <div>
-          <p className="text-xs text-slate-400 mb-2">Card Pills</p>
+          <p className={`text-xs ${theme.muted} mb-2`}>Card Pills</p>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-white/90" />
-              <span className="text-xs text-slate-300">At target</span>
+              <span className="w-3 h-3 rounded-full bg-white/90 border border-slate-300" />
+              <span className={`text-xs ${theme.text}`}>At target</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-white/50" />
-              <span className="text-xs text-slate-300">Close</span>
+              <span className="w-3 h-3 rounded-full bg-white/50 border border-slate-300" />
+              <span className={`text-xs ${theme.text}`}>Close</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-white/25" />
-              <span className="text-xs text-slate-300">Behind</span>
+              <span className="w-3 h-3 rounded-full bg-white/25 border border-slate-300" />
+              <span className={`text-xs ${theme.text}`}>Behind</span>
             </div>
           </div>
         </div>
         <div>
-          <p className="text-xs text-slate-400 mb-2">Detail Pills</p>
+          <p className={`text-xs ${theme.muted} mb-2`}>Detail Pills</p>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-emerald-300" />
-              <span className="text-xs text-slate-300">At target</span>
+              <span className={`text-xs ${theme.text}`}>At target</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-amber-400" />
-              <span className="text-xs text-slate-300">Close</span>
+              <span className={`text-xs ${theme.text}`}>Close</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-slate-600 ring-2 ring-white/50" />
-              <span className="text-xs text-slate-300">Target level</span>
+              <span className={`text-xs ${theme.text}`}>Target level</span>
             </div>
           </div>
         </div>
@@ -349,6 +379,7 @@ function Legend() {
 // Settings Modal Component
 function SettingsModal({
   practices,
+  orderedPractices,
   maturityScale,
   months,
   currentMonth,
@@ -358,10 +389,11 @@ function SettingsModal({
   onUpdatePractice,
   onAddPractice,
   onDeletePractice,
+  onReorderPractice,
   onUpdateMaturityScale,
   onDeleteMonth,
   onSetColorPreset,
-  onUpdateRagLabel,
+  onUpdateRagColor,
   onClose
 }) {
   const [newPracticeName, setNewPracticeName] = useState('');
@@ -447,18 +479,37 @@ function SettingsModal({
               {/* Practice list */}
               <div>
                 <h3 className="text-sm font-medium text-slate-300 mb-3">
-                  Practices ({Object.keys(practices).length})
+                  Practices ({orderedPractices.length})
                 </h3>
                 <div className="space-y-2">
-                  {Object.entries(practices).map(([id, practice]) => (
-                    <div key={id} className="flex items-center gap-3 bg-slate-800/30 rounded-lg p-3">
+                  {orderedPractices.map((practice, index) => (
+                    <div key={practice.id} className="flex items-center gap-2 bg-slate-800/30 rounded-lg p-3">
+                      {/* Reorder buttons */}
+                      <div className="flex flex-col gap-0.5">
+                        <button
+                          onClick={() => index > 0 && onReorderPractice(index, index - 1)}
+                          disabled={index === 0}
+                          className={`p-0.5 rounded ${index === 0 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                          title="Move up"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => index < orderedPractices.length - 1 && onReorderPractice(index, index + 1)}
+                          disabled={index === orderedPractices.length - 1}
+                          className={`p-0.5 rounded ${index === orderedPractices.length - 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                          title="Move down"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
                       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
                         practice.type === 'boolean' ? 'bg-cyan-500' : 'bg-purple-500'
                       }`} />
                       <input
                         type="text"
                         value={practice.name}
-                        onChange={(e) => onUpdatePractice(id, 'name', e.target.value)}
+                        onChange={(e) => onUpdatePractice(practice.id, 'name', e.target.value)}
                         className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm focus:border-cyber-500 outline-none"
                       />
                       {practice.type === 'maturity' ? (
@@ -466,7 +517,7 @@ function SettingsModal({
                           <Target className="w-4 h-4 text-slate-400" />
                           <select
                             value={practice.target || 3}
-                            onChange={(e) => onUpdatePractice(id, 'target', parseInt(e.target.value))}
+                            onChange={(e) => onUpdatePractice(practice.id, 'target', parseInt(e.target.value))}
                             className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm w-16"
                           >
                             {maturityScale.slice(1).map((level) => (
@@ -482,7 +533,7 @@ function SettingsModal({
                       <button
                         onClick={() => {
                           if (confirm(`Delete "${practice.name}"?`)) {
-                            onDeletePractice(id);
+                            onDeletePractice(practice.id);
                           }
                         }}
                         className="p-1.5 hover:bg-red-900/50 text-slate-400 hover:text-red-400 rounded"
@@ -569,7 +620,7 @@ function SettingsModal({
           {activeTab === 'colors' && (
             <div className="space-y-4">
               <p className="text-sm text-slate-400">
-                Choose a color theme for status cards. You can also customize the status labels.
+                Choose a color theme for status cards, or customize each color with HEX values.
               </p>
 
               {/* Color Presets */}
@@ -587,9 +638,10 @@ function SettingsModal({
                       }`}
                     >
                       <div className="flex gap-2 mb-2">
-                        <div className={`w-6 h-6 rounded ${preset.green.bg}`} />
-                        <div className={`w-6 h-6 rounded ${preset.amber.bg}`} />
-                        <div className={`w-6 h-6 rounded ${preset.red.bg}`} />
+                        <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.green.hex }} />
+                        <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.amber.hex }} />
+                        <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.red.hex }} />
+                        <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.none.hex }} />
                       </div>
                       <span className="text-xs text-slate-400 capitalize">{name}</span>
                     </button>
@@ -597,23 +649,52 @@ function SettingsModal({
                 </div>
               </div>
 
-              {/* Status Labels */}
+              {/* Custom Status Colors */}
               <div>
-                <h3 className="text-sm font-medium text-slate-300 mb-3">Status Labels</h3>
+                <h3 className="text-sm font-medium text-slate-300 mb-3">
+                  Status Colors & Labels
+                  {colorPreset === 'custom' && <span className="ml-2 text-xs text-cyber-400">(Custom)</span>}
+                </h3>
                 <div className="space-y-2">
-                  {['green', 'amber', 'red'].map((status) => (
+                  {['green', 'amber', 'red', 'none'].map((status) => (
                     <div key={status} className="flex items-center gap-3 bg-slate-800/30 rounded-lg p-3">
-                      <div className={`w-4 h-4 rounded ${ragColors[status]?.bg || 'bg-slate-500'}`} />
+                      {/* Color picker */}
+                      <input
+                        type="color"
+                        value={ragColors[status]?.hex || DEFAULT_HEX_COLORS[status]}
+                        onChange={(e) => onUpdateRagColor(status, 'hex', e.target.value)}
+                        className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
+                        title={`Pick ${status} color`}
+                      />
+                      {/* HEX input */}
+                      <input
+                        type="text"
+                        value={ragColors[status]?.hex || DEFAULT_HEX_COLORS[status]}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                            onUpdateRagColor(status, 'hex', val);
+                          }
+                        }}
+                        placeholder="#000000"
+                        className="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none"
+                      />
+                      {/* Label input */}
                       <input
                         type="text"
                         value={ragColors[status]?.label || ''}
-                        onChange={(e) => onUpdateRagLabel(status, e.target.value)}
-                        placeholder={`${status} label...`}
+                        onChange={(e) => onUpdateRagColor(status, 'label', e.target.value)}
+                        placeholder={status === 'none' ? 'Not Tracked' : `${status} label...`}
                         className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm focus:border-cyber-500 outline-none"
                       />
+                      {/* Status name hint */}
+                      <span className="text-xs text-slate-500 w-12">{status}</span>
                     </div>
                   ))}
                 </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  The "none" status is for squads not being actively measured.
+                </p>
               </div>
             </div>
           )}
@@ -756,10 +837,35 @@ export default function App() {
     }
   };
 
+  // Theme classes
+  const theme = store.darkMode ? {
+    bg: 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950',
+    text: 'text-white',
+    header: 'bg-slate-950/90 border-slate-800',
+    card: 'bg-slate-900/50 border-slate-800',
+    cardAlt: 'bg-slate-800/50 border-slate-700',
+    input: 'bg-slate-800 border-slate-700',
+    muted: 'text-slate-400',
+    mutedBg: 'bg-slate-800',
+    hover: 'hover:bg-slate-700',
+    divider: 'border-slate-700',
+  } : {
+    bg: 'bg-gradient-to-br from-slate-100 via-white to-slate-100',
+    text: 'text-slate-900',
+    header: 'bg-white/90 border-slate-200',
+    card: 'bg-white border-slate-200',
+    cardAlt: 'bg-slate-50 border-slate-200',
+    input: 'bg-white border-slate-300',
+    muted: 'text-slate-500',
+    mutedBg: 'bg-slate-100',
+    hover: 'hover:bg-slate-200',
+    divider: 'border-slate-200',
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
+    <div className={`min-h-screen ${theme.bg} ${theme.text}`}>
       {/* Header - Fixed alignment with flex sections */}
-      <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur border-b border-slate-800">
+      <header className={`sticky top-0 z-40 ${theme.header} backdrop-blur border-b`}>
         <div className="max-w-6xl mx-auto px-4 py-3">
           <div className="flex items-center gap-4">
             {/* Left section - Logo (fixed width) */}
@@ -769,7 +875,7 @@ export default function App() {
               </div>
               <div className="text-left hidden sm:block">
                 <h1 className="font-bold text-xl">CyberDash</h1>
-                <p className="text-xs text-slate-400">{monthData.reportingPeriod}</p>
+                <p className={`text-xs ${theme.muted}`}>{monthData.reportingPeriod}</p>
               </div>
             </button>
 
@@ -780,11 +886,12 @@ export default function App() {
                 onChange={setEditMode}
                 labelLeft="View"
                 labelRight="Edit"
+                darkMode={store.darkMode}
               />
-              <div className="w-px h-5 bg-slate-700" />
+              <div className={`w-px h-5 ${theme.divider} border-l`} />
               <button
                 onClick={() => store.setDarkMode(!store.darkMode)}
-                className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded transition-colors"
+                className={`p-1.5 ${theme.mutedBg} ${theme.hover} rounded transition-colors`}
                 title={store.darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               >
                 {store.darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -795,11 +902,11 @@ export default function App() {
             <div className="flex items-center gap-2 flex-shrink-0">
               {/* Month Selector */}
               <div className="flex items-center gap-1">
-                <Calendar className="w-4 h-4 text-slate-400 hidden sm:block" />
+                <Calendar className={`w-4 h-4 ${theme.muted} hidden sm:block`} />
                 <select
                   value={store.currentMonth}
                   onChange={(e) => store.setCurrentMonth(e.target.value)}
-                  className="bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm w-24"
+                  className={`${theme.input} rounded px-2 py-1.5 text-sm w-24`}
                 >
                   {store.months.map((m) => (
                     <option key={m} value={m}>{m}</option>
@@ -807,7 +914,7 @@ export default function App() {
                 </select>
                 <button
                   onClick={openNewMonthModal}
-                  className={`p-1.5 bg-slate-800 hover:bg-slate-700 rounded ${!editMode ? 'invisible' : ''}`}
+                  className={`p-1.5 ${theme.mutedBg} ${theme.hover} rounded ${!editMode ? 'invisible' : ''}`}
                   title="New Month"
                 >
                   <Plus className="w-4 h-4" />
@@ -815,12 +922,12 @@ export default function App() {
               </div>
 
               {/* Divider */}
-              <div className="w-px h-6 bg-slate-700 mx-1" />
+              <div className={`w-px h-6 ${theme.divider} border-l mx-1`} />
 
               {/* Action buttons - always rendered, some invisible in view mode */}
               <button
                 onClick={store.exportData}
-                className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded"
+                className={`p-1.5 ${theme.mutedBg} ${theme.hover} rounded`}
                 title="Export"
               >
                 <Download className="w-4 h-4" />
@@ -835,14 +942,14 @@ export default function App() {
               />
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className={`p-1.5 bg-slate-800 hover:bg-slate-700 rounded ${!editMode ? 'invisible' : ''}`}
+                className={`p-1.5 ${theme.mutedBg} ${theme.hover} rounded ${!editMode ? 'invisible' : ''}`}
                 title="Import"
               >
                 <Upload className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setShowSettings(true)}
-                className={`p-1.5 bg-slate-800 hover:bg-slate-700 rounded ${!editMode ? 'invisible' : ''}`}
+                className={`p-1.5 ${theme.mutedBg} ${theme.hover} rounded ${!editMode ? 'invisible' : ''}`}
                 title="Settings"
               >
                 <Settings className="w-4 h-4" />
@@ -851,7 +958,7 @@ export default function App() {
                 onClick={() => {
                   if (confirm('Reset all data to defaults?')) store.resetData();
                 }}
-                className={`p-1.5 bg-slate-800 hover:bg-red-900 rounded ${!editMode ? 'invisible' : ''}`}
+                className={`p-1.5 ${theme.mutedBg} hover:bg-red-900 rounded ${!editMode ? 'invisible' : ''}`}
                 title="Reset"
               >
                 <RotateCcw className="w-4 h-4" />
@@ -865,6 +972,7 @@ export default function App() {
       {showSettings && (
         <SettingsModal
           practices={store.practices}
+          orderedPractices={store.orderedPractices}
           maturityScale={store.maturityScale}
           months={store.months}
           currentMonth={store.currentMonth}
@@ -874,10 +982,11 @@ export default function App() {
           onUpdatePractice={store.updatePractice}
           onAddPractice={store.addPractice}
           onDeletePractice={store.deletePractice}
+          onReorderPractice={store.reorderPractice}
           onUpdateMaturityScale={store.updateMaturityScale}
           onDeleteMonth={store.deleteMonth}
           onSetColorPreset={store.setColorPreset}
-          onUpdateRagLabel={store.updateRagLabel}
+          onUpdateRagColor={store.updateRagColor}
           onClose={() => setShowSettings(false)}
         />
       )}
@@ -932,15 +1041,15 @@ export default function App() {
       <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Breadcrumb - Larger */}
         <nav className="flex items-center gap-3 text-lg mb-6">
-          <button onClick={goHome} className="text-slate-400 hover:text-white transition-colors">
+          <button onClick={goHome} className={`${theme.muted} hover:opacity-70 transition-colors`}>
             Overview
           </button>
           {currentBU && (
             <>
-              <ChevronRight className="w-5 h-5 text-slate-600" />
+              <ChevronRight className={`w-5 h-5 ${theme.muted}`} />
               <button
                 onClick={() => setSelectedSquad(null)}
-                className={`transition-colors ${currentSquad ? 'text-slate-400 hover:text-white' : 'text-white font-semibold'}`}
+                className={`transition-colors ${currentSquad ? `${theme.muted} hover:opacity-70` : 'font-semibold'}`}
               >
                 {currentBU.name}
               </button>
@@ -948,8 +1057,8 @@ export default function App() {
           )}
           {currentSquad && (
             <>
-              <ChevronRight className="w-5 h-5 text-slate-600" />
-              <span className="text-white font-semibold">{currentSquad.name}</span>
+              <ChevronRight className={`w-5 h-5 ${theme.muted}`} />
+              <span className="font-semibold">{currentSquad.name}</span>
             </>
           )}
         </nav>
@@ -968,7 +1077,7 @@ export default function App() {
               </h2>
               {(() => {
                 const squadStatus = currentSquad.status || 'red';
-                const sc = getStatusClasses(store.ragColors, squadStatus);
+                const sc = getStatusInfo(store.ragColors, squadStatus);
                 return editMode ? (
                   <EditableSelect
                     value={squadStatus}
@@ -977,10 +1086,14 @@ export default function App() {
                       { value: 'green', label: `🟢 ${store.ragColors?.green?.label || 'Strong'}` },
                       { value: 'amber', label: `🟡 ${store.ragColors?.amber?.label || 'Developing'}` },
                       { value: 'red', label: `🔴 ${store.ragColors?.red?.label || 'Early Stage'}` },
+                      { value: 'none', label: `⚪ ${store.ragColors?.none?.label || 'Not Tracked'}` },
                     ]}
                   />
                 ) : (
-                  <div className={`px-4 py-2 rounded-lg text-sm font-medium ${sc.bg}`}>
+                  <div
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+                    style={{ backgroundColor: sc.hex }}
+                  >
                     {sc.label}
                   </div>
                 );
@@ -988,22 +1101,23 @@ export default function App() {
             </div>
 
             {/* Practices */}
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5">
+            <div className={`${theme.card} border rounded-xl p-5`}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Security Practices</h3>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-slate-400">
+                  <span className={`text-sm ${theme.muted}`}>
                     {getAdoptedCount(currentSquad.practices, store.practices).meetsTarget}/
                     {getAdoptedCount(currentSquad.practices, store.practices).total} at target
                   </span>
                 </div>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
-                {Object.entries(store.practices).map(([key, def]) => {
+                {store.orderedPractices.map((def) => {
+                  const key = def.id;
                   const value = currentSquad.practices[key];
                   const target = def.target || (def.type === 'boolean' ? true : 3);
                   return (
-                    <div key={key} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                    <div key={key} className={`flex items-center justify-between p-3 ${theme.cardAlt} rounded-lg`}>
                       {!editMode ? (
                         <>
                           <span className="text-sm font-medium">{def.name}</span>
@@ -1049,13 +1163,13 @@ export default function App() {
             </div>
 
             {/* Monthly Update */}
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5">
+            <div className={`${theme.card} border rounded-xl p-5`}>
               <h3 className="font-semibold mb-4">Monthly Update</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">This Period</label>
+                  <label className={`block text-sm ${theme.muted} mb-1`}>This Period</label>
                   {!editMode ? (
-                    <p className="text-sm">{currentSquad.monthlyUpdate.summary || <span className="text-slate-500 italic">No update</span>}</p>
+                    <p className="text-sm">{currentSquad.monthlyUpdate.summary || <span className={`${theme.muted} italic`}>No update</span>}</p>
                   ) : (
                     <EditableTextarea
                       value={currentSquad.monthlyUpdate.summary}
@@ -1066,9 +1180,9 @@ export default function App() {
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm text-slate-400 mb-1">Next Period</label>
+                  <label className={`block text-sm ${theme.muted} mb-1`}>Next Period</label>
                   {!editMode ? (
-                    <p className="text-sm">{currentSquad.monthlyUpdate.nextPeriod || <span className="text-slate-500 italic">No plans</span>}</p>
+                    <p className="text-sm">{currentSquad.monthlyUpdate.nextPeriod || <span className={`${theme.muted} italic`}>No plans</span>}</p>
                   ) : (
                     <EditableTextarea
                       value={currentSquad.monthlyUpdate.nextPeriod}
@@ -1080,7 +1194,7 @@ export default function App() {
                 </div>
                 <div className="flex gap-4 flex-wrap">
                   <div>
-                    <label className="block text-sm text-slate-400 mb-1">Trend</label>
+                    <label className={`block text-sm ${theme.muted} mb-1`}>Trend</label>
                     {!editMode ? (
                       <div className={`flex items-center gap-2 ${trendConfig[currentSquad.monthlyUpdate.trend].color}`}>
                         {(() => { const T = trendConfig[currentSquad.monthlyUpdate.trend]; return <T.Icon className="w-5 h-5" />; })()}
@@ -1099,12 +1213,12 @@ export default function App() {
                     )}
                   </div>
                   <div className="flex-1">
-                    <label className="block text-sm text-slate-400 mb-1">Key Metric</label>
+                    <label className={`block text-sm ${theme.muted} mb-1`}>Key Metric</label>
                     {!editMode ? (
                       <p className="text-sm">
-                        <span className="text-slate-300">{currentSquad.monthlyUpdate.keyMetric.label}:</span>{' '}
+                        <span>{currentSquad.monthlyUpdate.keyMetric.label}:</span>{' '}
                         <span className="text-cyber-400 font-medium">{currentSquad.monthlyUpdate.keyMetric.value}</span>
-                        <span className="text-slate-500"> / {currentSquad.monthlyUpdate.keyMetric.target}</span>
+                        <span className={theme.muted}> / {currentSquad.monthlyUpdate.keyMetric.target}</span>
                       </p>
                     ) : (
                       <div className="flex gap-2 items-center flex-wrap">
@@ -1114,14 +1228,14 @@ export default function App() {
                           placeholder="Label"
                           className="text-sm"
                         />
-                        <span className="text-slate-500">:</span>
+                        <span className={theme.muted}>:</span>
                         <EditableText
                           value={currentSquad.monthlyUpdate.keyMetric.value}
                           onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'monthlyUpdate.keyMetric.value', v)}
                           placeholder="Value"
                           className="text-sm"
                         />
-                        <span className="text-slate-500">/</span>
+                        <span className={theme.muted}>/</span>
                         <EditableText
                           value={currentSquad.monthlyUpdate.keyMetric.target}
                           onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'monthlyUpdate.keyMetric.target', v)}
@@ -1176,14 +1290,15 @@ export default function App() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {currentBU.squads.map((squad) => {
                 const status = squad.status || 'red';
-                const statusClasses = getStatusClasses(store.ragColors, status);
+                const statusInfo = getStatusInfo(store.ragColors, status);
                 const { adopted, total, meetsTarget } = getAdoptedCount(squad.practices, store.practices);
                 const trend = trendConfig[squad.monthlyUpdate.trend];
                 return (
                   <Tooltip key={squad.id} squad={squad} practices={store.practices} ragColors={store.ragColors}>
                     <div
                       onClick={() => setSelectedSquad(squad.id)}
-                      className={`${statusClasses.bg} ${statusClasses.hover} rounded-xl p-5 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
+                      className="rounded-xl p-5 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                      style={{ backgroundColor: statusInfo.hex }}
                     >
                       {/* Card Header */}
                       <div className="flex items-start justify-between mb-3">
@@ -1240,7 +1355,7 @@ export default function App() {
                       {/* Footer */}
                       <div className="flex items-center justify-between pt-3 border-t border-white/20">
                         <span className="text-white/70 text-sm">{trend.label}</span>
-                        <span className="text-white/50 text-xs">{statusClasses.label}</span>
+                        <span className="text-white/50 text-xs">{statusInfo.label}</span>
                       </div>
                     </div>
                   </Tooltip>
@@ -1249,10 +1364,10 @@ export default function App() {
             </div>
 
             {currentBU.squads.length === 0 && (
-              <p className="text-center text-slate-500 py-8">No squads yet. {editMode && 'Add one to get started.'}</p>
+              <p className={`text-center ${theme.muted} py-8`}>No squads yet. {editMode && 'Add one to get started.'}</p>
             )}
 
-            <Legend />
+            <Legend darkMode={store.darkMode} ragColors={store.ragColors} />
 
             {editMode && (
               <button
@@ -1288,10 +1403,12 @@ export default function App() {
             <div className="grid sm:grid-cols-2 gap-5">
               {monthData.businessUnits.map((bu) => {
                 const squadStatuses = bu.squads.map((s) => s.status || 'red');
-                const hasRed = squadStatuses.includes('red');
-                const hasAmber = squadStatuses.includes('amber');
-                const dominantStatus = hasRed ? 'red' : hasAmber ? 'amber' : 'green';
-                const statusClasses = getStatusClasses(store.ragColors, dominantStatus);
+                // Ignore 'none' status when determining dominant color
+                const activeStatuses = squadStatuses.filter(s => s !== 'none');
+                const hasRed = activeStatuses.includes('red');
+                const hasAmber = activeStatuses.includes('amber');
+                const dominantStatus = activeStatuses.length === 0 ? 'none' : hasRed ? 'red' : hasAmber ? 'amber' : 'green';
+                const statusInfo = getStatusInfo(store.ragColors, dominantStatus);
 
                 const totalAdopted = bu.squads.reduce((sum, s) => {
                   return sum + getAdoptedCount(s.practices, store.practices).adopted;
@@ -1303,16 +1420,19 @@ export default function App() {
                 const greenCount = squadStatuses.filter((s) => s === 'green').length;
                 const amberCount = squadStatuses.filter((s) => s === 'amber').length;
                 const redCount = squadStatuses.filter((s) => s === 'red').length;
+                const noneCount = squadStatuses.filter((s) => s === 'none').length;
 
                 const greenLabel = store.ragColors?.green?.label || 'strong';
                 const amberLabel = store.ragColors?.amber?.label || 'developing';
                 const redLabel = store.ragColors?.red?.label || 'early';
+                const noneLabel = store.ragColors?.none?.label || 'not tracked';
 
                 return (
                   <div
                     key={bu.id}
                     onClick={() => setSelectedBU(bu.id)}
-                    className={`${statusClasses.bg} ${statusClasses.hover} rounded-xl p-6 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
+                    className="rounded-xl p-6 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]"
+                    style={{ backgroundColor: statusInfo.hex }}
                   >
                     {/* Card Header */}
                     <h3 className="text-xl font-bold text-white mb-4">{bu.name}</h3>
@@ -1330,7 +1450,7 @@ export default function App() {
                     </div>
 
                     {/* Status Distribution - white-based dots for contrast */}
-                    <div className="flex gap-4 pt-4 border-t border-white/20">
+                    <div className="flex flex-wrap gap-4 pt-4 border-t border-white/20">
                       {greenCount > 0 && (
                         <div className="flex items-center gap-2">
                           <span className="w-3 h-3 rounded-full bg-white/90" />
@@ -1352,6 +1472,13 @@ export default function App() {
                           <span className="text-white/50 text-xs">{redLabel.toLowerCase()}</span>
                         </div>
                       )}
+                      {noneCount > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="w-3 h-3 rounded-full bg-white/20 border border-white/40" />
+                          <span className="text-white font-bold">{noneCount}</span>
+                          <span className="text-white/50 text-xs">{noneLabel.toLowerCase()}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1359,10 +1486,10 @@ export default function App() {
             </div>
 
             {monthData.businessUnits.length === 0 && (
-              <p className="text-center text-slate-500 py-8">No business units yet. {editMode && 'Add one to get started.'}</p>
+              <p className={`text-center ${theme.muted} py-8`}>No business units yet. {editMode && 'Add one to get started.'}</p>
             )}
 
-            <Legend />
+            <Legend darkMode={store.darkMode} ragColors={store.ragColors} />
           </div>
         )}
       </main>

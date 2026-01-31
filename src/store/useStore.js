@@ -9,34 +9,39 @@ const DEFAULT_MATURITY_SCALE = [
   { level: 4, label: "Managed", short: "4" },
 ];
 
-// Default RAG color schemes
+// Default RAG color schemes with hex values
 const DEFAULT_RAG_COLORS = {
-  green: { bg: 'bg-emerald-600', hover: 'hover:bg-emerald-700', label: 'Strong' },
-  amber: { bg: 'bg-amber-600', hover: 'hover:bg-amber-700', label: 'Developing' },
-  red: { bg: 'bg-red-600', hover: 'hover:bg-red-700', label: 'Early Stage' },
+  green: { hex: '#059669', label: 'Strong' },
+  amber: { hex: '#d97706', label: 'Developing' },
+  red: { hex: '#dc2626', label: 'Early Stage' },
+  none: { hex: '#64748b', label: 'Not Tracked' },
 };
 
-// Available color presets
+// Available color presets with hex values
 const COLOR_PRESETS = {
   default: {
-    green: { bg: 'bg-emerald-600', hover: 'hover:bg-emerald-700' },
-    amber: { bg: 'bg-amber-600', hover: 'hover:bg-amber-700' },
-    red: { bg: 'bg-red-600', hover: 'hover:bg-red-700' },
+    green: { hex: '#059669' },
+    amber: { hex: '#d97706' },
+    red: { hex: '#dc2626' },
+    none: { hex: '#64748b' },
   },
   muted: {
-    green: { bg: 'bg-teal-700', hover: 'hover:bg-teal-800' },
-    amber: { bg: 'bg-yellow-700', hover: 'hover:bg-yellow-800' },
-    red: { bg: 'bg-rose-700', hover: 'hover:bg-rose-800' },
+    green: { hex: '#0f766e' },
+    amber: { hex: '#a16207' },
+    red: { hex: '#be123c' },
+    none: { hex: '#475569' },
   },
   vibrant: {
-    green: { bg: 'bg-green-500', hover: 'hover:bg-green-600' },
-    amber: { bg: 'bg-orange-500', hover: 'hover:bg-orange-600' },
-    red: { bg: 'bg-red-500', hover: 'hover:bg-red-600' },
+    green: { hex: '#22c55e' },
+    amber: { hex: '#f97316' },
+    red: { hex: '#ef4444' },
+    none: { hex: '#94a3b8' },
   },
   corporate: {
-    green: { bg: 'bg-cyan-700', hover: 'hover:bg-cyan-800' },
-    amber: { bg: 'bg-slate-500', hover: 'hover:bg-slate-600' },
-    red: { bg: 'bg-indigo-700', hover: 'hover:bg-indigo-800' },
+    green: { hex: '#0891b2' },
+    amber: { hex: '#64748b' },
+    red: { hex: '#4f46e5' },
+    none: { hex: '#334155' },
   },
 };
 
@@ -54,11 +59,15 @@ const DEFAULT_PRACTICES = {
   securityTesting: { name: "Testing", type: "maturity", target: 3 },
 };
 
+// Default practice order
+const DEFAULT_PRACTICE_ORDER = Object.keys(DEFAULT_PRACTICES);
+
 // Default starter data
 const DEFAULT_DATA = {
   currentMonth: "2025-01",
   maturityScale: DEFAULT_MATURITY_SCALE,
   practices: DEFAULT_PRACTICES,
+  practiceOrder: DEFAULT_PRACTICE_ORDER,
   ragColors: DEFAULT_RAG_COLORS,
   darkMode: true, // Default to dark mode
   colorPreset: 'default',
@@ -319,6 +328,12 @@ export function useStore() {
       // Add to practice definitions
       newData.practices[id] = { name, type, target: defaultTarget };
 
+      // Add to practice order
+      if (!newData.practiceOrder) {
+        newData.practiceOrder = Object.keys(newData.practices);
+      }
+      newData.practiceOrder.push(id);
+
       // Add default value to all squads in all months
       Object.values(newData.months).forEach((month) => {
         month.businessUnits.forEach((bu) => {
@@ -339,6 +354,11 @@ export function useStore() {
 
       // Remove from practice definitions
       delete newData.practices[practiceId];
+
+      // Remove from practice order
+      if (newData.practiceOrder) {
+        newData.practiceOrder = newData.practiceOrder.filter(id => id !== practiceId);
+      }
 
       // Remove from all squads in all months
       Object.values(newData.months).forEach((month) => {
@@ -395,31 +415,59 @@ export function useStore() {
         ...prev,
         colorPreset: presetName,
         ragColors: {
-          green: { ...preset.green, label: prev.ragColors?.green?.label || 'Strong' },
-          amber: { ...preset.amber, label: prev.ragColors?.amber?.label || 'Developing' },
-          red: { ...preset.red, label: prev.ragColors?.red?.label || 'Early Stage' },
+          green: { hex: preset.green.hex, label: prev.ragColors?.green?.label || 'Strong' },
+          amber: { hex: preset.amber.hex, label: prev.ragColors?.amber?.label || 'Developing' },
+          red: { hex: preset.red.hex, label: prev.ragColors?.red?.label || 'Early Stage' },
+          none: { hex: preset.none.hex, label: prev.ragColors?.none?.label || 'Not Tracked' },
         },
       };
     });
   }, []);
 
-  // Update RAG label
-  const updateRagLabel = useCallback((status, label) => {
+  // Update RAG color (hex or label)
+  const updateRagColor = useCallback((status, field, value) => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
       if (!newData.ragColors) newData.ragColors = DEFAULT_RAG_COLORS;
-      if (newData.ragColors[status]) {
-        newData.ragColors[status].label = label;
+      if (!newData.ragColors[status]) {
+        newData.ragColors[status] = { hex: '#888888', label: status };
       }
+      newData.ragColors[status][field] = value;
+      newData.colorPreset = 'custom'; // Mark as custom when user changes colors
       return newData;
     });
   }, []);
+
+  // Update RAG label (convenience function)
+  const updateRagLabel = useCallback((status, label) => {
+    updateRagColor(status, 'label', label);
+  }, [updateRagColor]);
+
+  // Reorder practices
+  const reorderPractice = useCallback((fromIndex, toIndex) => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      const order = newData.practiceOrder || Object.keys(newData.practices);
+      const [moved] = order.splice(fromIndex, 1);
+      order.splice(toIndex, 0, moved);
+      newData.practiceOrder = order;
+      return newData;
+    });
+  }, []);
+
+  // Get ordered practices
+  const practiceOrder = data.practiceOrder || Object.keys(data.practices);
+  const orderedPractices = practiceOrder
+    .filter(id => data.practices[id])
+    .map(id => ({ id, ...data.practices[id] }));
 
   return {
     data,
     currentMonth: data.currentMonth,
     currentMonthData,
     practices: data.practices,
+    practiceOrder,
+    orderedPractices,
     maturityScale: data.maturityScale || DEFAULT_MATURITY_SCALE,
     ragColors: data.ragColors || DEFAULT_RAG_COLORS,
     darkMode: data.darkMode !== false, // Default to true
@@ -444,7 +492,9 @@ export function useStore() {
     updateMaturityScale,
     setDarkMode,
     setColorPreset,
+    updateRagColor,
     updateRagLabel,
+    reorderPractice,
   };
 }
 
