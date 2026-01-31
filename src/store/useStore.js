@@ -1,8 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 
+// Default team types (configurable labels for organizational units)
+const DEFAULT_TEAM_TYPES = [
+  { id: 'squad', label: 'Squad', plural: 'Squads', description: 'Small cross-functional team working on a specific product area' },
+  { id: 'tribe', label: 'Tribe', plural: 'Tribes', description: 'Collection of squads working on related product areas' },
+];
+
 // Default maturity scale (-1 = N/A, 0-4 for levels)
 const DEFAULT_MATURITY_SCALE = [
-  { level: -1, label: "N/A", short: "—", description: "Not applicable - this practice is not relevant for this squad" },
+  { level: -1, label: "N/A", short: "—", description: "Not applicable - this practice is not relevant for this team" },
   { level: 0, label: "None", short: "0", description: "Not started - no formal process or capability exists" },
   { level: 1, label: "Initial", short: "1", description: "Ad-hoc - basic awareness, inconsistent implementation" },
   { level: 2, label: "Developing", short: "2", description: "Repeatable - documented process, partial adoption across team" },
@@ -130,6 +136,7 @@ const DEFAULT_DATA = {
   practices: DEFAULT_PRACTICES,
   practiceOrder: DEFAULT_PRACTICE_ORDER,
   ragColors: DEFAULT_RAG_COLORS,
+  teamTypes: DEFAULT_TEAM_TYPES,
   darkMode: true, // Default to dark mode
   colorPreset: 'default',
   months: {
@@ -254,8 +261,8 @@ export function useStore() {
     });
   }, []);
 
-  // Add a new squad to a business unit
-  const addSquad = useCallback((buId) => {
+  // Add a new team (squad/tribe) to a business unit
+  const addSquad = useCallback((buId, teamType = 'squad') => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
       const bu = newData.months[newData.currentMonth].businessUnits.find(
@@ -263,12 +270,15 @@ export function useStore() {
       );
       if (!bu) return prev;
 
-      const id = `squad-${Date.now()}`;
+      const teamTypes = prev.teamTypes || DEFAULT_TEAM_TYPES;
+      const typeInfo = teamTypes.find(t => t.id === teamType) || teamTypes[0];
+      const id = `team-${Date.now()}`;
       bu.squads.push({
         id,
-        name: "New Squad",
-        status: "red", // Default to red for new squads
-        tracked: false, // New squads are untracked by default
+        name: `New ${typeInfo.label}`,
+        teamType: teamType, // 'squad', 'tribe', etc.
+        status: "red", // Default to red for new teams
+        tracked: false, // New teams are untracked by default
         weight: 1, // Default weight
         practices: Object.fromEntries(
           Object.entries(prev.practices).map(([key, p]) => [
@@ -676,6 +686,20 @@ export function useStore() {
     });
   }, []);
 
+  // Update team types
+  const updateTeamType = useCallback((index, field, value) => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData.teamTypes) {
+        newData.teamTypes = DEFAULT_TEAM_TYPES;
+      }
+      if (newData.teamTypes[index]) {
+        newData.teamTypes[index][field] = value;
+      }
+      return newData;
+    });
+  }, []);
+
   // Get ordered practices
   const practiceOrder = data.practiceOrder || Object.keys(data.practices);
   const orderedPractices = practiceOrder
@@ -691,6 +715,7 @@ export function useStore() {
     orderedPractices,
     maturityScale: data.maturityScale || DEFAULT_MATURITY_SCALE,
     ragColors: data.ragColors || DEFAULT_RAG_COLORS,
+    teamTypes: data.teamTypes || DEFAULT_TEAM_TYPES,
     darkMode: data.darkMode !== false, // Default to true
     colorPreset: data.colorPreset || 'default',
     colorPresets: COLOR_PRESETS,
@@ -719,6 +744,7 @@ export function useStore() {
     addPractice,
     deletePractice,
     updateMaturityScale,
+    updateTeamType,
     setDarkMode,
     setColorPreset,
     updateRagColor,

@@ -50,6 +50,34 @@ function getMaturityStatus(current, target, type) {
   return 'behind';
 }
 
+// Calculate practice adoption across all squads in a BU
+// Returns: { practiceId: { adopted: number, partial: number, notAdopted: number, na: number, total: number } }
+function getPracticeAdoption(squads, definitions) {
+  const result = {};
+  Object.entries(definitions).forEach(([practiceId, def]) => {
+    let adopted = 0, partial = 0, notAdopted = 0, na = 0;
+    const target = def.target || (def.type === 'boolean' ? true : 3);
+
+    squads.forEach((squad) => {
+      const value = squad.practices?.[practiceId];
+      if (def.type === 'boolean') {
+        if (value === 'na') na++;
+        else if (value === target) adopted++;
+        else notAdopted++;
+      } else {
+        if (value === -1) na++;
+        else if (value >= target) adopted++;
+        else if (value >= target - 1) partial++;
+        else notAdopted++;
+      }
+    });
+
+    const total = squads.length - na;
+    result[practiceId] = { adopted, partial, notAdopted, na, total };
+  });
+  return result;
+}
+
 // Stacked Pills Component - Option E visualization
 function MaturityPills({ current, target, scale, compact = false }) {
   // Handle N/A value (-1)
@@ -1478,10 +1506,25 @@ export default function App() {
               })()}
             </div>
 
-            {/* Squad Settings - Tracked & Weight (Edit mode only) */}
+            {/* Team Settings - Type, Tracked & Weight (Edit mode only) */}
             {editMode && (
               <div className={`${theme.cardAlt} rounded-lg p-4`}>
                 <div className="flex items-center justify-between flex-wrap gap-4">
+                  {/* Team Type */}
+                  <div className="flex items-center gap-3">
+                    <Users className={`w-4 h-4 ${theme.muted}`} />
+                    <span className={`text-sm ${theme.muted}`}>Type:</span>
+                    <select
+                      value={currentSquad.teamType || 'squad'}
+                      onChange={(e) => store.updateSquad(currentBU.id, currentSquad.id, 'teamType', e.target.value)}
+                      className={`${theme.input} border rounded px-2 py-1 text-sm`}
+                    >
+                      {store.teamTypes.map((type) => (
+                        <option key={type.id} value={type.id}>{type.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
                   {/* Tracked Toggle */}
                   <div className="flex items-center gap-3">
                     <button
@@ -1501,11 +1544,6 @@ export default function App() {
                         {currentSquad.tracked !== false ? 'Tracked' : 'Untracked'}
                       </span>
                     </button>
-                    <span className={`text-xs ${theme.muted}`}>
-                      {currentSquad.tracked !== false
-                        ? 'Counts toward BU status'
-                        : "Doesn't impact BU status"}
-                    </span>
                   </div>
 
                   {/* Weight */}
@@ -1521,9 +1559,6 @@ export default function App() {
                       onChange={(e) => store.updateSquad(currentBU.id, currentSquad.id, 'weight', parseFloat(e.target.value) || 1)}
                       className={`w-16 ${theme.input} border rounded px-2 py-1 text-sm text-center`}
                     />
-                    <span className={`text-xs ${theme.muted}`}>
-                      (relative importance)
-                    </span>
                   </div>
                 </div>
               </div>
@@ -1671,13 +1706,19 @@ export default function App() {
                 )}
               </h2>
               {editMode && (
-                <button
-                  onClick={() => store.addSquad(currentBU.id)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-cyber-500 hover:bg-cyber-600 rounded text-sm"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Squad
-                </button>
+                <div className="flex items-center gap-2">
+                  {store.teamTypes.map((type) => (
+                    <button
+                      key={type.id}
+                      onClick={() => store.addSquad(currentBU.id, type.id)}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-cyber-500 hover:bg-cyber-600 rounded text-sm"
+                      title={type.description}
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add {type.label}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
 
@@ -1688,6 +1729,7 @@ export default function App() {
                 const statusInfo = getStatusInfo(store.ragColors, displayStatus);
                 const { adopted, total, meetsTarget } = getAdoptedCount(squad.practices || {}, store.practices);
                 const trend = trendConfig[squad.monthlyUpdate?.trend] || trendConfig.stable;
+                const teamType = store.teamTypes.find(t => t.id === (squad.teamType || 'squad'));
                 return (
                   <Tooltip key={squad.id} squad={squad} practices={store.practices} ragColors={store.ragColors}>
                     <div
@@ -1697,7 +1739,10 @@ export default function App() {
                     >
                       {/* Card Header */}
                       <div className="flex items-start justify-between mb-3">
-                        <h3 className="font-bold text-white text-lg leading-tight">{squad.name}</h3>
+                        <div>
+                          <p className="text-white/60 text-xs mb-0.5">{teamType?.label || 'Squad'}</p>
+                          <h3 className="font-bold text-white text-lg leading-tight">{squad.name}</h3>
+                        </div>
                         <div className="p-1.5 rounded-full bg-white/20">
                           <trend.Icon className="w-4 h-4 text-white" />
                         </div>
@@ -1802,87 +1847,115 @@ export default function App() {
 
             <div className="grid sm:grid-cols-2 gap-5">
               {monthData.businessUnits.map((bu) => {
-                const squadStatuses = bu.squads.map((s) => s.status || 'red');
                 // Use weighted calculation based on tracked squads and their weights
                 const dominantStatus = getWeightedBuStatus(bu.squads);
                 const statusInfo = getStatusInfo(store.ragColors, dominantStatus);
 
-                // Calculate weighted average of adopted practices
-                const totalPracticesCount = Object.keys(store.practices).length;
-                let weightedAdoptedSum = 0;
-                let totalWeight = 0;
-                bu.squads.forEach((s) => {
-                  const weight = s.weight || 1;
-                  const { adopted } = getAdoptedCount(s.practices, store.practices);
-                  weightedAdoptedSum += adopted * weight;
-                  totalWeight += weight;
-                });
-                const weightedAdopted = totalWeight > 0
-                  ? (weightedAdoptedSum / totalWeight).toFixed(1).replace(/\.0$/, '')
-                  : 0;
+                // Calculate practice adoption across squads
+                const practiceAdoption = getPracticeAdoption(bu.squads, store.practices);
 
-                const greenCount = squadStatuses.filter((s) => s === 'green').length;
-                const amberCount = squadStatuses.filter((s) => s === 'amber').length;
-                const redCount = squadStatuses.filter((s) => s === 'red').length;
-                const noneCount = squadStatuses.filter((s) => s === 'none').length;
-
-                const greenLabel = store.ragColors?.green?.label || 'strong';
-                const amberLabel = store.ragColors?.amber?.label || 'developing';
-                const redLabel = store.ragColors?.red?.label || 'early';
-                const noneLabel = store.ragColors?.none?.label || 'not tracked';
+                // Get team type label (default to 'Squad' for backward compatibility)
+                const getTeamLabel = (squad) => {
+                  const type = squad.teamType || 'squad';
+                  const typeInfo = store.teamTypes.find(t => t.id === type);
+                  return typeInfo?.label || 'Squad';
+                };
 
                 return (
                   <div
                     key={bu.id}
                     onClick={() => setSelectedBU(bu.id)}
-                    className="rounded-xl p-6 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]"
-                    style={{ backgroundColor: statusInfo.hex }}
+                    className={`${theme.card} border rounded-xl p-5 cursor-pointer transition-all hover:shadow-lg hover:scale-[1.01]`}
                   >
-                    {/* Card Header */}
-                    <h3 className="text-xl font-bold text-white mb-4">{bu.name}</h3>
-
-                    {/* Big Stats Row */}
-                    <div className="flex items-end justify-between mb-5">
-                      <div>
-                        <div className="text-5xl font-black text-white leading-none">{bu.squads.length}</div>
-                        <div className="text-white/50 text-sm mt-1">Squads</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-3xl font-bold text-white/90">{weightedAdopted}<span className="text-lg text-white/50">/{totalPracticesCount}</span></div>
-                        <div className="text-white/50 text-sm">Practices</div>
+                    {/* Card Header with status indicator */}
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="text-lg font-bold">{bu.name}</h3>
+                      <div
+                        className="px-2 py-1 rounded text-xs font-medium text-white"
+                        style={{ backgroundColor: statusInfo.hex }}
+                      >
+                        {statusInfo.label}
                       </div>
                     </div>
 
-                    {/* Status Distribution - white-based dots for contrast */}
-                    <div className="flex flex-wrap gap-4 pt-4 border-t border-white/20">
-                      {greenCount > 0 && (
-                        <div className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-white/90" />
-                          <span className="text-white font-bold">{greenCount}</span>
-                          <span className="text-white/50 text-xs">{greenLabel.toLowerCase()}</span>
-                        </div>
-                      )}
-                      {amberCount > 0 && (
-                        <div className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-white/60" />
-                          <span className="text-white font-bold">{amberCount}</span>
-                          <span className="text-white/50 text-xs">{amberLabel.toLowerCase()}</span>
-                        </div>
-                      )}
-                      {redCount > 0 && (
-                        <div className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-white/30" />
-                          <span className="text-white font-bold">{redCount}</span>
-                          <span className="text-white/50 text-xs">{redLabel.toLowerCase()}</span>
-                        </div>
-                      )}
-                      {noneCount > 0 && (
-                        <div className="flex items-center gap-2">
-                          <span className="w-3 h-3 rounded-full bg-white/20 border border-white/40" />
-                          <span className="text-white font-bold">{noneCount}</span>
-                          <span className="text-white/50 text-xs">{noneLabel.toLowerCase()}</span>
-                        </div>
-                      )}
+                    {/* Teams Section */}
+                    <div className="mb-4">
+                      <p className={`text-xs ${theme.muted} mb-2`}>Teams ({bu.squads.length})</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {bu.squads.map((squad) => {
+                          const squadStatus = squad.tracked === false ? 'none' : (squad.status || 'red');
+                          const squadInfo = getStatusInfo(store.ragColors, squadStatus);
+                          return (
+                            <div
+                              key={squad.id}
+                              className="group relative"
+                            >
+                              <div
+                                className="w-4 h-4 rounded-full cursor-help"
+                                style={{ backgroundColor: squadInfo.hex }}
+                                title={`${squad.name} (${getTeamLabel(squad)}): ${squadInfo.label}`}
+                              />
+                              {/* Hover tooltip */}
+                              <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity">
+                                <div className="font-medium">{squad.name}</div>
+                                <div className="text-slate-400">{getTeamLabel(squad)} • {squadInfo.label}</div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Practices Section */}
+                    <div>
+                      <p className={`text-xs ${theme.muted} mb-2`}>Practices</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {store.orderedPractices.map((practice) => {
+                          const adoption = practiceAdoption[practice.id] || { adopted: 0, partial: 0, notAdopted: 0, na: 0, total: 0 };
+                          const allNA = adoption.total === 0;
+                          const allAdopted = adoption.total > 0 && adoption.adopted === adoption.total;
+                          const someAdopted = adoption.adopted > 0 || adoption.partial > 0;
+
+                          // Determine pill color based on adoption
+                          let pillClass = '';
+                          if (allNA) {
+                            pillClass = 'bg-slate-500/30 border border-slate-500/50'; // Grey for all N/A
+                          } else if (allAdopted) {
+                            pillClass = 'bg-emerald-500'; // Green for full adoption
+                          } else if (someAdopted) {
+                            pillClass = 'bg-amber-500'; // Amber for partial
+                          } else {
+                            pillClass = 'bg-red-500/60'; // Red for none
+                          }
+
+                          return (
+                            <div
+                              key={practice.id}
+                              className="group relative"
+                            >
+                              <div
+                                className={`w-4 h-4 rounded-full cursor-help ${pillClass}`}
+                                style={!allNA && practice.color ? { backgroundColor: allAdopted ? practice.color : undefined } : undefined}
+                                title={`${practice.name}: ${adoption.adopted}/${adoption.total} adopted`}
+                              />
+                              {/* Hover tooltip */}
+                              <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity">
+                                <div className="font-medium">{practice.name}</div>
+                                <div className="text-slate-400">
+                                  {allNA ? 'N/A for all teams' : (
+                                    <>
+                                      {adoption.adopted} adopted
+                                      {adoption.partial > 0 && `, ${adoption.partial} partial`}
+                                      {adoption.notAdopted > 0 && `, ${adoption.notAdopted} behind`}
+                                      {adoption.na > 0 && `, ${adoption.na} N/A`}
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 );
