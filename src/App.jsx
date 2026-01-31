@@ -233,8 +233,8 @@ function getNextMonthSuggestion(currentMonth) {
 // Tooltip component for hover metadata
 function Tooltip({ squad, practices, ragColors, children }) {
   const [show, setShow] = useState(false);
-  const { adopted, total } = getAdoptedCount(squad.practices, practices);
-  const trend = trendConfig[squad.monthlyUpdate.trend];
+  const { adopted, total } = getAdoptedCount(squad.practices || {}, practices);
+  const trend = trendConfig[squad.monthlyUpdate?.trend] || trendConfig.stable;
   const statusInfo = getStatusInfo(ragColors, squad.status || 'red');
 
   // Get important practices and their values
@@ -294,13 +294,13 @@ function Tooltip({ squad, practices, ragColors, children }) {
                 </div>
               </div>
             )}
-            {squad.monthlyUpdate.summary && (
+            {squad.monthlyUpdate?.summary && (
               <div className="pt-2 border-t border-slate-700">
                 <p className="text-slate-400 text-xs mb-1">This Period:</p>
                 <p className="text-white text-xs leading-relaxed">{squad.monthlyUpdate.summary}</p>
               </div>
             )}
-            {squad.monthlyUpdate.nextPeriod && (
+            {squad.monthlyUpdate?.nextPeriod && (
               <div className="pt-2 border-t border-slate-700">
                 <p className="text-slate-400 text-xs mb-1">Next Period:</p>
                 <p className="text-white text-xs leading-relaxed">{squad.monthlyUpdate.nextPeriod}</p>
@@ -454,6 +454,7 @@ function SettingsModal({
   onImportAllArchive,
   onExportSettings,
   onImportSettings,
+  onResetData,
   onClose
 }) {
   const [newPracticeName, setNewPracticeName] = useState('');
@@ -922,6 +923,26 @@ function SettingsModal({
                   </button>
                 </div>
               </div>
+
+              {/* Hard Reset */}
+              <div className={`border border-red-500/30 rounded-lg p-4`}>
+                <h3 className={`text-sm font-medium text-red-400 mb-2`}>Factory Reset</h3>
+                <p className={`text-xs ${st.textDim} mb-3`}>
+                  Reset all data and settings to factory defaults. This will delete all your data and cannot be undone.
+                </p>
+                <button
+                  onClick={() => {
+                    if (confirm('Are you sure you want to reset everything to factory defaults?\n\nThis will DELETE ALL your data including:\n- All business units and squads\n- All months of history\n- All practice configurations\n- All color customizations\n\nThis action CANNOT be undone!')) {
+                      onResetData();
+                      onClose();
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 rounded text-sm w-full"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Reset to Factory Defaults
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -1172,6 +1193,7 @@ export default function App() {
           onImportAllArchive={store.importAllArchive}
           onExportSettings={store.exportSettings}
           onImportSettings={store.importSettings}
+          onResetData={store.resetData}
           onClose={() => setShowSettings(false)}
         />
       )}
