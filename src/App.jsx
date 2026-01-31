@@ -3,7 +3,7 @@ import {
   Shield, Plus, Trash2, Download, Upload,
   Calendar, Users, ChevronRight, RotateCcw,
   Info, ArrowUpRight, ArrowDownRight, Minus,
-  Settings, X
+  Settings, X, Target, Check
 } from 'lucide-react';
 import { useStore } from './store/useStore';
 import {
@@ -14,21 +14,100 @@ import {
   EditableMaturity,
 } from './components/Editable';
 
-// Count adopted practices
+// Count adopted practices (meeting target)
 function getAdoptedCount(practices, definitions) {
   let adopted = 0;
   let total = 0;
+  let meetsTarget = 0;
   Object.entries(practices).forEach(([key, value]) => {
     const def = definitions[key];
     if (!def) return;
     total++;
     if (def.type === 'boolean') {
       if (value) adopted++;
+      if (value === def.target) meetsTarget++;
     } else {
       if (value >= 3) adopted++;
+      if (value >= (def.target || 3)) meetsTarget++;
     }
   });
-  return { adopted, total };
+  return { adopted, total, meetsTarget };
+}
+
+// Get status color based on current vs target
+function getMaturityStatus(current, target, type) {
+  if (type === 'boolean') {
+    return current === target ? 'met' : 'behind';
+  }
+  if (current >= target) return 'met';
+  if (current >= target - 1) return 'close';
+  return 'behind';
+}
+
+// Stacked Pills Component - Option E visualization
+function MaturityPills({ current, target, scale, compact = false }) {
+  const maxLevel = scale.length - 1; // 0 to 4 = 5 levels
+
+  return (
+    <div className={`flex items-center ${compact ? 'gap-0.5' : 'gap-1'}`}>
+      {scale.slice(1).map((level, idx) => {
+        const levelNum = idx + 1;
+        const isFilled = current >= levelNum;
+        const isTarget = target === levelNum;
+        const isPastTarget = levelNum > target;
+
+        return (
+          <div
+            key={levelNum}
+            className={`
+              ${compact ? 'w-2 h-2' : 'w-3 h-3'} rounded-full transition-all
+              ${isFilled
+                ? current >= target
+                  ? 'bg-emerald-400'
+                  : 'bg-amber-400'
+                : isPastTarget
+                  ? 'bg-slate-700'
+                  : 'bg-slate-600'
+              }
+              ${isTarget && !isFilled ? 'ring-2 ring-white/50 ring-offset-1 ring-offset-slate-900' : ''}
+              ${isTarget && isFilled ? 'ring-2 ring-emerald-300' : ''}
+            `}
+            title={`${level.label}${isTarget ? ' (Target)' : ''}`}
+          />
+        );
+      })}
+      {!compact && (
+        <span className="text-xs text-slate-400 ml-1">
+          {current}/{target}
+        </span>
+      )}
+    </div>
+  );
+}
+
+// Boolean Pill - for yes/no practices
+function BooleanPill({ value, target, compact = false }) {
+  const met = value === target;
+  return (
+    <div className={`flex items-center ${compact ? 'gap-1' : 'gap-2'}`}>
+      <div
+        className={`
+          ${compact ? 'w-4 h-4' : 'w-5 h-5'} rounded-full flex items-center justify-center
+          ${value
+            ? met ? 'bg-emerald-400' : 'bg-amber-400'
+            : 'bg-slate-600 ring-2 ring-white/30'
+          }
+        `}
+      >
+        {value && <Check className={`${compact ? 'w-2.5 h-2.5' : 'w-3 h-3'} text-white`} />}
+      </div>
+      {!compact && (
+        <span className={`text-xs ${value ? 'text-emerald-400' : 'text-slate-400'}`}>
+          {value ? 'Yes' : 'No'}
+        </span>
+      )}
+    </div>
+  );
 }
 
 // RAG background colors for cards
@@ -188,21 +267,21 @@ function Legend() {
         <Info className="w-4 h-4 text-slate-400" />
         <span className="text-sm font-medium text-slate-300">Legend</span>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div>
-          <p className="text-xs text-slate-400 mb-2">Status</p>
+          <p className="text-xs text-slate-400 mb-2">Card Status</p>
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded bg-emerald-500" />
-              <span className="text-xs text-slate-300">Green - Strong</span>
+              <span className="text-xs text-slate-300">Strong</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded bg-amber-500" />
-              <span className="text-xs text-slate-300">Amber - Developing</span>
+              <span className="text-xs text-slate-300">Developing</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded bg-red-500" />
-              <span className="text-xs text-slate-300">Red - Early Stage</span>
+              <span className="text-xs text-slate-300">Early Stage</span>
             </div>
           </div>
         </div>
@@ -219,7 +298,37 @@ function Legend() {
             </div>
             <div className="flex items-center gap-2">
               <ArrowDownRight className="w-4 h-4 text-amber-400" />
-              <span className="text-xs text-slate-300">Needs Attention</span>
+              <span className="text-xs text-slate-300">Attention</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p className="text-xs text-slate-400 mb-2">Practice Pills</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-400" />
+              <span className="text-xs text-slate-300">At target</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-amber-400" />
+              <span className="text-xs text-slate-300">Close</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-slate-600" />
+              <span className="text-xs text-slate-300">Behind</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p className="text-xs text-slate-400 mb-2">Target Indicator</p>
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-slate-600 ring-2 ring-white/50" />
+              <span className="text-xs text-slate-300">Target level</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-emerald-300" />
+              <span className="text-xs text-slate-300">Target met</span>
             </div>
           </div>
         </div>
@@ -229,55 +338,220 @@ function Legend() {
 }
 
 // Settings Modal Component
-function SettingsModal({ practices, onUpdatePractice, onClose }) {
+function SettingsModal({
+  practices,
+  maturityScale,
+  onUpdatePractice,
+  onAddPractice,
+  onDeletePractice,
+  onUpdateMaturityScale,
+  onClose
+}) {
+  const [newPracticeName, setNewPracticeName] = useState('');
+  const [newPracticeType, setNewPracticeType] = useState('maturity');
+  const [activeTab, setActiveTab] = useState('practices');
+
+  const handleAddPractice = () => {
+    if (newPracticeName.trim()) {
+      onAddPractice(newPracticeName.trim(), newPracticeType);
+      setNewPracticeName('');
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-lg max-h-[80vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-slate-700">
           <h2 className="text-lg font-semibold">Settings</h2>
           <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-sm font-medium text-slate-300 mb-3">Practice Names</h3>
-            <p className="text-xs text-slate-500 mb-4">Customize the display names for security practices</p>
-            <div className="space-y-2">
-              {Object.entries(practices).map(([id, practice]) => (
-                <div key={id} className="flex items-center gap-3">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${practice.type === 'boolean' ? 'bg-cyan-500' : 'bg-purple-500'}`} />
-                  <input
-                    type="text"
-                    value={practice.name}
-                    onChange={(e) => onUpdatePractice(id, 'name', e.target.value)}
-                    className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm focus:border-cyber-500 outline-none"
-                  />
-                  <span className="text-xs text-slate-500 w-16">
-                    {practice.type === 'boolean' ? 'Yes/No' : 'Level 1-4'}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-slate-700">
-            <h3 className="text-sm font-medium text-slate-300 mb-3">Practice Types</h3>
-            <div className="flex items-center gap-4 text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-cyan-500" />
-                Boolean (Yes/No)
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-purple-500" />
-                Maturity (1-4 scale)
-              </div>
-            </div>
-          </div>
+        {/* Tabs */}
+        <div className="flex border-b border-slate-700">
+          <button
+            onClick={() => setActiveTab('practices')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'practices'
+                ? 'text-cyber-400 border-b-2 border-cyber-400'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Practices
+          </button>
+          <button
+            onClick={() => setActiveTab('scale')}
+            className={`px-4 py-2 text-sm font-medium transition-colors ${
+              activeTab === 'scale'
+                ? 'text-cyber-400 border-b-2 border-cyber-400'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Maturity Scale
+          </button>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-slate-700">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {activeTab === 'practices' && (
+            <div className="space-y-4">
+              {/* Add new practice */}
+              <div className="bg-slate-800/50 rounded-lg p-4">
+                <h3 className="text-sm font-medium text-slate-300 mb-3">Add New Practice</h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newPracticeName}
+                    onChange={(e) => setNewPracticeName(e.target.value)}
+                    placeholder="Practice name..."
+                    className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:border-cyber-500 outline-none"
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddPractice()}
+                  />
+                  <select
+                    value={newPracticeType}
+                    onChange={(e) => setNewPracticeType(e.target.value)}
+                    className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                  >
+                    <option value="maturity">Maturity</option>
+                    <option value="boolean">Yes/No</option>
+                  </select>
+                  <button
+                    onClick={handleAddPractice}
+                    disabled={!newPracticeName.trim()}
+                    className="px-4 py-2 bg-cyber-500 hover:bg-cyber-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm font-medium"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Practice list */}
+              <div>
+                <h3 className="text-sm font-medium text-slate-300 mb-3">
+                  Practices ({Object.keys(practices).length})
+                </h3>
+                <div className="space-y-2">
+                  {Object.entries(practices).map(([id, practice]) => (
+                    <div key={id} className="flex items-center gap-3 bg-slate-800/30 rounded-lg p-3">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
+                        practice.type === 'boolean' ? 'bg-cyan-500' : 'bg-purple-500'
+                      }`} />
+                      <input
+                        type="text"
+                        value={practice.name}
+                        onChange={(e) => onUpdatePractice(id, 'name', e.target.value)}
+                        className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm focus:border-cyber-500 outline-none"
+                      />
+                      {practice.type === 'maturity' ? (
+                        <div className="flex items-center gap-2">
+                          <Target className="w-4 h-4 text-slate-400" />
+                          <select
+                            value={practice.target || 3}
+                            onChange={(e) => onUpdatePractice(id, 'target', parseInt(e.target.value))}
+                            className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm w-16"
+                          >
+                            {maturityScale.slice(1).map((level) => (
+                              <option key={level.level} value={level.level}>
+                                {level.level}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-500 px-2">Yes/No</span>
+                      )}
+                      <button
+                        onClick={() => {
+                          if (confirm(`Delete "${practice.name}"?`)) {
+                            onDeletePractice(id);
+                          }
+                        }}
+                        className="p-1.5 hover:bg-red-900/50 text-slate-400 hover:text-red-400 rounded"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div className="pt-4 border-t border-slate-700">
+                <div className="flex items-center gap-6 text-xs text-slate-400">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                    Boolean (Yes/No)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-purple-500" />
+                    Maturity (scale levels)
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Target className="w-3 h-3" />
+                    Target level
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'scale' && (
+            <div className="space-y-4">
+              <p className="text-sm text-slate-400">
+                Customize the labels for your maturity scale. Level 0 means "not started".
+              </p>
+
+              <div className="space-y-2">
+                {maturityScale.map((level, idx) => (
+                  <div key={idx} className="flex items-center gap-3 bg-slate-800/30 rounded-lg p-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-sm">
+                      {level.level}
+                    </div>
+                    <input
+                      type="text"
+                      value={level.label}
+                      onChange={(e) => onUpdateMaturityScale(idx, 'label', e.target.value)}
+                      placeholder="Level label..."
+                      className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:border-cyber-500 outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={level.short}
+                      onChange={(e) => onUpdateMaturityScale(idx, 'short', e.target.value)}
+                      placeholder="Short"
+                      maxLength={2}
+                      className="w-12 bg-slate-800 border border-slate-700 rounded px-2 py-2 text-sm text-center focus:border-cyber-500 outline-none"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Pills Preview */}
+              <div className="bg-slate-800/50 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-slate-300 mb-3">Preview</h4>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-400">At target (3/3):</span>
+                    <MaturityPills current={3} target={3} scale={maturityScale} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-400">Close to target (2/3):</span>
+                    <MaturityPills current={2} target={3} scale={maturityScale} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-slate-400">Behind target (1/4):</span>
+                    <MaturityPills current={1} target={4} scale={maturityScale} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-slate-700">
           <button
             onClick={onClose}
             className="w-full px-4 py-2 bg-cyber-500 hover:bg-cyber-600 rounded text-sm font-medium"
@@ -474,7 +748,11 @@ export default function App() {
       {showSettings && (
         <SettingsModal
           practices={store.practices}
+          maturityScale={store.maturityScale}
           onUpdatePractice={store.updatePractice}
+          onAddPractice={store.addPractice}
+          onDeletePractice={store.deletePractice}
+          onUpdateMaturityScale={store.updateMaturityScale}
           onClose={() => setShowSettings(false)}
         />
       )}
@@ -584,41 +862,60 @@ export default function App() {
             <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold">Security Practices</h3>
-                <span className="text-sm text-slate-400">
-                  {getAdoptedCount(currentSquad.practices, store.practices).adopted}/
-                  {getAdoptedCount(currentSquad.practices, store.practices).total} adopted
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-400">
+                    {getAdoptedCount(currentSquad.practices, store.practices).meetsTarget}/
+                    {getAdoptedCount(currentSquad.practices, store.practices).total} at target
+                  </span>
+                </div>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
-                {Object.entries(store.practices).map(([key, def]) => (
-                  <div key={key} className="flex items-center justify-between p-2 bg-slate-800/50 rounded">
-                    {!editMode ? (
-                      <div className="flex items-center gap-2">
-                        <span className={`w-3 h-3 rounded-full ${
-                          def.type === 'boolean'
-                            ? (currentSquad.practices[key] ? 'bg-emerald-500' : 'bg-red-500')
-                            : (currentSquad.practices[key] >= 3 ? 'bg-emerald-500' : currentSquad.practices[key] >= 2 ? 'bg-amber-500' : 'bg-red-500')
-                        }`} />
-                        <span className="text-sm">{def.name}</span>
-                        {def.type === 'maturity' && (
-                          <span className="text-xs text-slate-400">({currentSquad.practices[key]}/4)</span>
-                        )}
-                      </div>
-                    ) : def.type === 'boolean' ? (
-                      <EditableToggle
-                        value={currentSquad.practices[key]}
-                        onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, `practices.${key}`, v)}
-                        label={def.name}
-                      />
-                    ) : (
-                      <EditableMaturity
-                        value={currentSquad.practices[key]}
-                        onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, `practices.${key}`, v)}
-                        label={def.name}
-                      />
-                    )}
-                  </div>
-                ))}
+                {Object.entries(store.practices).map(([key, def]) => {
+                  const value = currentSquad.practices[key];
+                  const target = def.target || (def.type === 'boolean' ? true : 3);
+                  return (
+                    <div key={key} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                      {!editMode ? (
+                        <>
+                          <span className="text-sm font-medium">{def.name}</span>
+                          {def.type === 'boolean' ? (
+                            <BooleanPill value={value} target={target} />
+                          ) : (
+                            <MaturityPills
+                              current={value}
+                              target={target}
+                              scale={store.maturityScale}
+                            />
+                          )}
+                        </>
+                      ) : def.type === 'boolean' ? (
+                        <EditableToggle
+                          value={value}
+                          onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, `practices.${key}`, v)}
+                          label={def.name}
+                        />
+                      ) : (
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-sm">{def.name}</span>
+                          <div className="flex items-center gap-3">
+                            <MaturityPills
+                              current={value}
+                              target={target}
+                              scale={store.maturityScale}
+                              compact
+                            />
+                            <EditableMaturity
+                              value={value}
+                              onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, `practices.${key}`, v)}
+                              label=""
+                              max={store.maturityScale.length - 1}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -750,7 +1047,7 @@ export default function App() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {currentBU.squads.map((squad) => {
                 const status = squad.status || 'red';
-                const { adopted, total } = getAdoptedCount(squad.practices, store.practices);
+                const { adopted, total, meetsTarget } = getAdoptedCount(squad.practices, store.practices);
                 const trend = trendConfig[squad.monthlyUpdate.trend];
                 return (
                   <Tooltip key={squad.id} squad={squad} practices={store.practices}>
@@ -759,18 +1056,48 @@ export default function App() {
                       className={`${statusBg[status]} ${statusBgHover[status]} rounded-xl p-5 cursor-pointer transition-all shadow-lg hover:shadow-xl hover:scale-[1.02]`}
                     >
                       {/* Card Header */}
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start justify-between mb-3">
                         <h3 className="font-bold text-white text-lg leading-tight">{squad.name}</h3>
                         <div className={`p-1.5 rounded-full ${trend.bgColor}`}>
                           <trend.Icon className={`w-4 h-4 ${trend.color}`} />
                         </div>
                       </div>
 
+                      {/* Pills Summary Row */}
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        {Object.entries(store.practices).map(([key, def]) => {
+                          const value = squad.practices[key];
+                          const target = def.target || (def.type === 'boolean' ? true : 3);
+                          if (def.type === 'boolean') {
+                            return (
+                              <div
+                                key={key}
+                                className={`w-3 h-3 rounded-full ${
+                                  value ? 'bg-emerald-300' : 'bg-white/20'
+                                }`}
+                                title={`${def.name}: ${value ? 'Yes' : 'No'}`}
+                              />
+                            );
+                          }
+                          const met = value >= target;
+                          const close = value >= target - 1;
+                          return (
+                            <div
+                              key={key}
+                              className={`w-3 h-3 rounded-full ${
+                                met ? 'bg-emerald-300' : close ? 'bg-amber-300' : 'bg-white/20'
+                              }`}
+                              title={`${def.name}: ${value}/${target}`}
+                            />
+                          );
+                        })}
+                      </div>
+
                       {/* Big Stats */}
-                      <div className="flex items-end justify-between mb-4">
+                      <div className="flex items-end justify-between mb-3">
                         <div>
-                          <div className="text-4xl font-black text-white leading-none">{adopted}</div>
-                          <div className="text-white/50 text-xs mt-1">of {total} practices</div>
+                          <div className="text-4xl font-black text-white leading-none">{meetsTarget}</div>
+                          <div className="text-white/50 text-xs mt-1">of {total} at target</div>
                         </div>
                         {squad.monthlyUpdate.keyMetric.value && (
                           <div className="text-right">

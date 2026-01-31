@@ -1,22 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Default practice definitions
+// Default maturity scale (0-4, where 0 = not started)
+const DEFAULT_MATURITY_SCALE = [
+  { level: 0, label: "None", short: "N" },
+  { level: 1, label: "Initial", short: "1" },
+  { level: 2, label: "Developing", short: "2" },
+  { level: 3, label: "Defined", short: "3" },
+  { level: 4, label: "Managed", short: "4" },
+];
+
+// Default practice definitions with targets
 const DEFAULT_PRACTICES = {
-  embeddedSecurityExperts: { name: "Security Experts", type: "boolean" },
-  threatModeling: { name: "Threat Modeling", type: "maturity" },
-  secureCodeReview: { name: "Code Review", type: "boolean" },
-  automatedSecurityTesting: { name: "Auto Testing", type: "maturity" },
-  dependencyScanning: { name: "Dep Scanning", type: "maturity" },
-  secretsManagement: { name: "Secrets Mgmt", type: "maturity" },
-  securityRequirements: { name: "Requirements", type: "maturity" },
-  vulnerabilityManagement: { name: "Vuln Mgmt", type: "maturity" },
-  incidentResponse: { name: "Incident Resp", type: "boolean" },
-  securityTesting: { name: "Testing", type: "maturity" },
+  embeddedSecurityExperts: { name: "Security Experts", type: "boolean", target: true },
+  threatModeling: { name: "Threat Modeling", type: "maturity", target: 3 },
+  secureCodeReview: { name: "Code Review", type: "boolean", target: true },
+  automatedSecurityTesting: { name: "Auto Testing", type: "maturity", target: 3 },
+  dependencyScanning: { name: "Dep Scanning", type: "maturity", target: 4 },
+  secretsManagement: { name: "Secrets Mgmt", type: "maturity", target: 3 },
+  securityRequirements: { name: "Requirements", type: "maturity", target: 3 },
+  vulnerabilityManagement: { name: "Vuln Mgmt", type: "maturity", target: 4 },
+  incidentResponse: { name: "Incident Resp", type: "boolean", target: true },
+  securityTesting: { name: "Testing", type: "maturity", target: 3 },
 };
 
 // Default starter data
 const DEFAULT_DATA = {
   currentMonth: "2025-01",
+  maturityScale: DEFAULT_MATURITY_SCALE,
   practices: DEFAULT_PRACTICES,
   months: {
     "2025-01": {
@@ -265,11 +275,70 @@ export function useStore() {
     });
   }, []);
 
+  // Add a new practice
+  const addPractice = useCallback((name, type = 'maturity') => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      const id = `practice-${Date.now()}`;
+      const defaultTarget = type === 'boolean' ? true : 3;
+
+      // Add to practice definitions
+      newData.practices[id] = { name, type, target: defaultTarget };
+
+      // Add default value to all squads in all months
+      Object.values(newData.months).forEach((month) => {
+        month.businessUnits.forEach((bu) => {
+          bu.squads.forEach((squad) => {
+            squad.practices[id] = type === 'boolean' ? false : 0;
+          });
+        });
+      });
+
+      return newData;
+    });
+  }, []);
+
+  // Delete a practice
+  const deletePractice = useCallback((practiceId) => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+
+      // Remove from practice definitions
+      delete newData.practices[practiceId];
+
+      // Remove from all squads in all months
+      Object.values(newData.months).forEach((month) => {
+        month.businessUnits.forEach((bu) => {
+          bu.squads.forEach((squad) => {
+            delete squad.practices[practiceId];
+          });
+        });
+      });
+
+      return newData;
+    });
+  }, []);
+
+  // Update maturity scale
+  const updateMaturityScale = useCallback((index, field, value) => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData.maturityScale) {
+        newData.maturityScale = DEFAULT_MATURITY_SCALE;
+      }
+      if (newData.maturityScale[index]) {
+        newData.maturityScale[index][field] = value;
+      }
+      return newData;
+    });
+  }, []);
+
   return {
     data,
     currentMonth: data.currentMonth,
     currentMonthData,
     practices: data.practices,
+    maturityScale: data.maturityScale || DEFAULT_MATURITY_SCALE,
     months: Object.keys(data.months).sort().reverse(),
     setCurrentMonth,
     createNewMonth,
@@ -283,6 +352,9 @@ export function useStore() {
     importData,
     resetData,
     updatePractice,
+    addPractice,
+    deletePractice,
+    updateMaturityScale,
   };
 }
 
