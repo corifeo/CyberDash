@@ -4,7 +4,7 @@ import {
   Calendar, Users, ChevronRight, RotateCcw,
   Info, ArrowUpRight, ArrowDownRight, Minus,
   Settings, X, Target, Check, Sun, Moon,
-  ChevronUp, ChevronDown, GripVertical
+  ChevronUp, ChevronDown, Eye, EyeOff, Scale
 } from 'lucide-react';
 import { useStore } from './store/useStore';
 import {
@@ -143,6 +143,37 @@ function adjustColor(hex, percent) {
   const G = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amt));
   const B = Math.max(0, Math.min(255, (num & 0x0000FF) + amt));
   return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
+}
+
+// Calculate weighted BU RAG status from tracked squads only
+function getWeightedBuStatus(squads) {
+  // Filter to only tracked squads with valid status
+  const trackedSquads = squads.filter(s => s.tracked !== false && s.status && s.status !== 'none');
+
+  if (trackedSquads.length === 0) {
+    return 'none'; // No tracked squads = grey
+  }
+
+  // Calculate weighted score: green=3, amber=2, red=1
+  const statusValue = { green: 3, amber: 2, red: 1 };
+  let totalWeight = 0;
+  let weightedSum = 0;
+
+  trackedSquads.forEach(squad => {
+    const weight = squad.weight || 1;
+    const value = statusValue[squad.status] || 1;
+    totalWeight += weight;
+    weightedSum += value * weight;
+  });
+
+  if (totalWeight === 0) return 'none';
+
+  const avgScore = weightedSum / totalWeight;
+
+  // Convert back to status: 2.5+ = green, 1.5+ = amber, else red
+  if (avgScore >= 2.5) return 'green';
+  if (avgScore >= 1.5) return 'amber';
+  return 'red';
 }
 
 // Better trend config with colors and icons
@@ -386,6 +417,7 @@ function SettingsModal({
   colorPreset,
   colorPresets,
   ragColors,
+  darkMode = true,
   onUpdatePractice,
   onAddPractice,
   onDeletePractice,
@@ -394,11 +426,46 @@ function SettingsModal({
   onDeleteMonth,
   onSetColorPreset,
   onUpdateRagColor,
+  onExportAllArchive,
+  onImportAllArchive,
+  onExportSettings,
+  onImportSettings,
   onClose
 }) {
   const [newPracticeName, setNewPracticeName] = useState('');
   const [newPracticeType, setNewPracticeType] = useState('maturity');
   const [activeTab, setActiveTab] = useState('practices');
+  const archiveInputRef = useRef(null);
+  const settingsInputRef = useRef(null);
+
+  // Theme for light/dark mode
+  const st = darkMode ? {
+    bg: 'bg-slate-900',
+    border: 'border-slate-700',
+    cardBg: 'bg-slate-800/50',
+    cardBgAlt: 'bg-slate-800/30',
+    input: 'bg-slate-800 border-slate-700 text-white',
+    text: 'text-white',
+    textMuted: 'text-slate-300',
+    textHint: 'text-slate-400',
+    textDim: 'text-slate-500',
+    hover: 'hover:bg-slate-700',
+    hoverDanger: 'hover:bg-red-900/50 hover:text-red-400',
+    btnDisabled: 'text-slate-600',
+  } : {
+    bg: 'bg-white',
+    border: 'border-slate-200',
+    cardBg: 'bg-slate-100',
+    cardBgAlt: 'bg-slate-50',
+    input: 'bg-white border-slate-300 text-slate-900',
+    text: 'text-slate-900',
+    textMuted: 'text-slate-700',
+    textHint: 'text-slate-500',
+    textDim: 'text-slate-400',
+    hover: 'hover:bg-slate-200',
+    hoverDanger: 'hover:bg-red-100 hover:text-red-600',
+    btnDisabled: 'text-slate-300',
+  };
 
   const handleAddPractice = () => {
     if (newPracticeName.trim()) {
@@ -407,26 +474,44 @@ function SettingsModal({
     }
   };
 
+  const handleArchiveImport = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => onImportAllArchive(e.target.result);
+      reader.readAsText(file);
+    }
+  };
+
+  const handleSettingsImport = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => onImportSettings(e.target.result);
+      reader.readAsText(file);
+    }
+  };
+
   const tabs = [
     { id: 'practices', label: 'Practices' },
     { id: 'scale', label: 'Scale' },
     { id: 'colors', label: 'Colors' },
-    { id: 'months', label: 'Months' },
+    { id: 'months', label: 'Data' },
   ];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+      <div className={`${st.bg} border ${st.border} rounded-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col ${st.text}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+        <div className={`flex items-center justify-between p-4 border-b ${st.border}`}>
           <h2 className="text-lg font-semibold">Settings</h2>
-          <button onClick={onClose} className="p-1 hover:bg-slate-800 rounded">
+          <button onClick={onClose} className={`p-1 ${st.hover} rounded`}>
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-700">
+        <div className={`flex border-b ${st.border}`}>
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -434,7 +519,7 @@ function SettingsModal({
               className={`px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === tab.id
                   ? 'text-cyber-400 border-b-2 border-cyber-400'
-                  : 'text-slate-400 hover:text-white'
+                  : `${st.textHint} ${st.hover}`
               }`}
             >
               {tab.label}
@@ -442,26 +527,30 @@ function SettingsModal({
           ))}
         </div>
 
+        {/* Hidden file inputs */}
+        <input ref={archiveInputRef} type="file" accept=".json" onChange={handleArchiveImport} className="hidden" />
+        <input ref={settingsInputRef} type="file" accept=".json" onChange={handleSettingsImport} className="hidden" />
+
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
           {activeTab === 'practices' && (
             <div className="space-y-4">
               {/* Add new practice */}
-              <div className="bg-slate-800/50 rounded-lg p-4">
-                <h3 className="text-sm font-medium text-slate-300 mb-3">Add New Practice</h3>
+              <div className={`${st.cardBg} rounded-lg p-4`}>
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-3`}>Add New Practice</h3>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={newPracticeName}
                     onChange={(e) => setNewPracticeName(e.target.value)}
                     placeholder="Practice name..."
-                    className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:border-cyber-500 outline-none"
+                    className={`flex-1 ${st.input} border rounded px-3 py-2 text-sm focus:border-cyber-500 outline-none`}
                     onKeyDown={(e) => e.key === 'Enter' && handleAddPractice()}
                   />
                   <select
                     value={newPracticeType}
                     onChange={(e) => setNewPracticeType(e.target.value)}
-                    className="bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm"
+                    className={`${st.input} border rounded px-3 py-2 text-sm`}
                   >
                     <option value="maturity">Maturity</option>
                     <option value="boolean">Yes/No</option>
@@ -469,7 +558,7 @@ function SettingsModal({
                   <button
                     onClick={handleAddPractice}
                     disabled={!newPracticeName.trim()}
-                    className="px-4 py-2 bg-cyber-500 hover:bg-cyber-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm font-medium"
+                    className="px-4 py-2 bg-cyber-500 hover:bg-cyber-600 disabled:opacity-50 disabled:cursor-not-allowed rounded text-sm font-medium text-white"
                   >
                     <Plus className="w-4 h-4" />
                   </button>
@@ -478,18 +567,18 @@ function SettingsModal({
 
               {/* Practice list */}
               <div>
-                <h3 className="text-sm font-medium text-slate-300 mb-3">
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-3`}>
                   Practices ({orderedPractices.length})
                 </h3>
                 <div className="space-y-2">
                   {orderedPractices.map((practice, index) => (
-                    <div key={practice.id} className="flex items-center gap-2 bg-slate-800/30 rounded-lg p-3">
+                    <div key={practice.id} className={`flex items-center gap-2 ${st.cardBgAlt} rounded-lg p-3`}>
                       {/* Reorder buttons */}
                       <div className="flex flex-col gap-0.5">
                         <button
                           onClick={() => index > 0 && onReorderPractice(index, index - 1)}
                           disabled={index === 0}
-                          className={`p-0.5 rounded ${index === 0 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                          className={`p-0.5 rounded ${index === 0 ? st.btnDisabled + ' cursor-not-allowed' : st.textHint + ' ' + st.hover}`}
                           title="Move up"
                         >
                           <ChevronUp className="w-3 h-3" />
@@ -497,7 +586,7 @@ function SettingsModal({
                         <button
                           onClick={() => index < orderedPractices.length - 1 && onReorderPractice(index, index + 1)}
                           disabled={index === orderedPractices.length - 1}
-                          className={`p-0.5 rounded ${index === orderedPractices.length - 1 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
+                          className={`p-0.5 rounded ${index === orderedPractices.length - 1 ? st.btnDisabled + ' cursor-not-allowed' : st.textHint + ' ' + st.hover}`}
                           title="Move down"
                         >
                           <ChevronDown className="w-3 h-3" />
@@ -510,15 +599,15 @@ function SettingsModal({
                         type="text"
                         value={practice.name}
                         onChange={(e) => onUpdatePractice(practice.id, 'name', e.target.value)}
-                        className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm focus:border-cyber-500 outline-none"
+                        className={`flex-1 ${st.input} border rounded px-3 py-1.5 text-sm focus:border-cyber-500 outline-none`}
                       />
                       {practice.type === 'maturity' ? (
                         <div className="flex items-center gap-2">
-                          <Target className="w-4 h-4 text-slate-400" />
+                          <Target className={`w-4 h-4 ${st.textHint}`} />
                           <select
                             value={practice.target || 3}
                             onChange={(e) => onUpdatePractice(practice.id, 'target', parseInt(e.target.value))}
-                            className="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-sm w-16"
+                            className={`${st.input} border rounded px-2 py-1 text-sm w-16`}
                           >
                             {maturityScale.slice(1).map((level) => (
                               <option key={level.level} value={level.level}>
@@ -528,7 +617,7 @@ function SettingsModal({
                           </select>
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-500 px-2">Yes/No</span>
+                        <span className={`text-xs ${st.textDim} px-2`}>Yes/No</span>
                       )}
                       <button
                         onClick={() => {
@@ -536,7 +625,7 @@ function SettingsModal({
                             onDeletePractice(practice.id);
                           }
                         }}
-                        className="p-1.5 hover:bg-red-900/50 text-slate-400 hover:text-red-400 rounded"
+                        className={`p-1.5 ${st.textHint} ${st.hoverDanger} rounded`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -546,8 +635,8 @@ function SettingsModal({
               </div>
 
               {/* Legend */}
-              <div className="pt-4 border-t border-slate-700">
-                <div className="flex items-center gap-6 text-xs text-slate-400">
+              <div className={`pt-4 border-t ${st.border}`}>
+                <div className={`flex items-center gap-6 text-xs ${st.textHint}`}>
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-cyan-500" />
                     Boolean (Yes/No)
@@ -567,14 +656,14 @@ function SettingsModal({
 
           {activeTab === 'scale' && (
             <div className="space-y-4">
-              <p className="text-sm text-slate-400">
+              <p className={`text-sm ${st.textHint}`}>
                 Customize the labels for your maturity scale. Level 0 means "not started".
               </p>
 
               <div className="space-y-2">
                 {maturityScale.map((level, idx) => (
-                  <div key={idx} className="flex items-center gap-3 bg-slate-800/30 rounded-lg p-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-sm">
+                  <div key={idx} className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
+                    <div className={`w-8 h-8 rounded-full ${st.cardBg} flex items-center justify-center font-bold text-sm`}>
                       {level.level}
                     </div>
                     <input
@@ -582,7 +671,7 @@ function SettingsModal({
                       value={level.label}
                       onChange={(e) => onUpdateMaturityScale(idx, 'label', e.target.value)}
                       placeholder="Level label..."
-                      className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm focus:border-cyber-500 outline-none"
+                      className={`flex-1 ${st.input} border rounded px-3 py-2 text-sm focus:border-cyber-500 outline-none`}
                     />
                     <input
                       type="text"
@@ -590,26 +679,26 @@ function SettingsModal({
                       onChange={(e) => onUpdateMaturityScale(idx, 'short', e.target.value)}
                       placeholder="Short"
                       maxLength={2}
-                      className="w-12 bg-slate-800 border border-slate-700 rounded px-2 py-2 text-sm text-center focus:border-cyber-500 outline-none"
+                      className={`w-12 ${st.input} border rounded px-2 py-2 text-sm text-center focus:border-cyber-500 outline-none`}
                     />
                   </div>
                 ))}
               </div>
 
               {/* Pills Preview */}
-              <div className="bg-slate-800/50 rounded-lg p-4">
-                <h4 className="text-sm font-medium text-slate-300 mb-3">Preview</h4>
+              <div className={`${st.cardBg} rounded-lg p-4`}>
+                <h4 className={`text-sm font-medium ${st.textMuted} mb-3`}>Preview</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-400">At target (3/3):</span>
+                    <span className={`text-sm ${st.textHint}`}>At target (3/3):</span>
                     <MaturityPills current={3} target={3} scale={maturityScale} />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-400">Close to target (2/3):</span>
+                    <span className={`text-sm ${st.textHint}`}>Close to target (2/3):</span>
                     <MaturityPills current={2} target={3} scale={maturityScale} />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-400">Behind target (1/4):</span>
+                    <span className={`text-sm ${st.textHint}`}>Behind target (1/4):</span>
                     <MaturityPills current={1} target={4} scale={maturityScale} />
                   </div>
                 </div>
@@ -619,13 +708,13 @@ function SettingsModal({
 
           {activeTab === 'colors' && (
             <div className="space-y-4">
-              <p className="text-sm text-slate-400">
+              <p className={`text-sm ${st.textHint}`}>
                 Choose a color theme for status cards, or customize each color with HEX values.
               </p>
 
               {/* Color Presets */}
               <div>
-                <h3 className="text-sm font-medium text-slate-300 mb-3">Color Theme</h3>
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-3`}>Color Theme</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {Object.entries(colorPresets).map(([name, preset]) => (
                     <button
@@ -633,8 +722,8 @@ function SettingsModal({
                       onClick={() => onSetColorPreset(name)}
                       className={`p-3 rounded-lg border-2 transition-all ${
                         colorPreset === name
-                          ? 'border-cyber-500 bg-slate-800/50'
-                          : 'border-slate-700 hover:border-slate-600'
+                          ? `border-cyber-500 ${st.cardBg}`
+                          : `${st.border} ${st.hover}`
                       }`}
                     >
                       <div className="flex gap-2 mb-2">
@@ -643,7 +732,7 @@ function SettingsModal({
                         <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.red.hex }} />
                         <div className="w-6 h-6 rounded" style={{ backgroundColor: preset.none.hex }} />
                       </div>
-                      <span className="text-xs text-slate-400 capitalize">{name}</span>
+                      <span className={`text-xs ${st.textHint} capitalize`}>{name}</span>
                     </button>
                   ))}
                 </div>
@@ -651,13 +740,13 @@ function SettingsModal({
 
               {/* Custom Status Colors */}
               <div>
-                <h3 className="text-sm font-medium text-slate-300 mb-3">
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-3`}>
                   Status Colors & Labels
                   {colorPreset === 'custom' && <span className="ml-2 text-xs text-cyber-400">(Custom)</span>}
                 </h3>
                 <div className="space-y-2">
                   {['green', 'amber', 'red', 'none'].map((status) => (
-                    <div key={status} className="flex items-center gap-3 bg-slate-800/30 rounded-lg p-3">
+                    <div key={status} className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
                       {/* Color picker */}
                       <input
                         type="color"
@@ -677,7 +766,7 @@ function SettingsModal({
                           }
                         }}
                         placeholder="#000000"
-                        className="w-24 bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none"
+                        className={`w-24 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
                       />
                       {/* Label input */}
                       <input
@@ -685,14 +774,14 @@ function SettingsModal({
                         value={ragColors[status]?.label || ''}
                         onChange={(e) => onUpdateRagColor(status, 'label', e.target.value)}
                         placeholder={status === 'none' ? 'Not Tracked' : `${status} label...`}
-                        className="flex-1 bg-slate-800 border border-slate-700 rounded px-3 py-1.5 text-sm focus:border-cyber-500 outline-none"
+                        className={`flex-1 ${st.input} border rounded px-3 py-1.5 text-sm focus:border-cyber-500 outline-none`}
                       />
                       {/* Status name hint */}
-                      <span className="text-xs text-slate-500 w-12">{status}</span>
+                      <span className={`text-xs ${st.textDim} w-12`}>{status}</span>
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-slate-500 mt-2">
+                <p className={`text-xs ${st.textDim} mt-2`}>
                   The "none" status is for squads not being actively measured.
                 </p>
               </div>
@@ -700,57 +789,108 @@ function SettingsModal({
           )}
 
           {activeTab === 'months' && (
-            <div className="space-y-4">
-              <p className="text-sm text-slate-400">
-                Manage reporting periods. You cannot delete the current month or the last remaining month.
-              </p>
+            <div className="space-y-6">
+              {/* Month Management */}
+              <div>
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-2`}>Reporting Periods</h3>
+                <p className={`text-xs ${st.textDim} mb-3`}>
+                  Manage months. Cannot delete current or last month.
+                </p>
+                <div className="space-y-2">
+                  {months.map((month) => {
+                    const isCurrent = month === currentMonth;
+                    const isLast = months.length === 1;
+                    const canDelete = !isCurrent && !isLast;
 
-              <div className="space-y-2">
-                {months.map((month) => {
-                  const isCurrent = month === currentMonth;
-                  const isLast = months.length === 1;
-                  const canDelete = !isCurrent && !isLast;
-
-                  return (
-                    <div key={month} className="flex items-center justify-between bg-slate-800/30 rounded-lg p-3">
-                      <div className="flex items-center gap-3">
-                        <Calendar className="w-4 h-4 text-slate-400" />
-                        <span className="text-sm">{month}</span>
-                        {isCurrent && (
-                          <span className="text-xs bg-cyber-500/20 text-cyber-400 px-2 py-0.5 rounded">
-                            Current
-                          </span>
-                        )}
+                    return (
+                      <div key={month} className={`flex items-center justify-between ${st.cardBgAlt} rounded-lg p-3`}>
+                        <div className="flex items-center gap-3">
+                          <Calendar className={`w-4 h-4 ${st.textHint}`} />
+                          <span className="text-sm">{month}</span>
+                          {isCurrent && (
+                            <span className="text-xs bg-cyber-500/20 text-cyber-400 px-2 py-0.5 rounded">
+                              Current
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (canDelete && confirm(`Delete ${month}? This cannot be undone.`)) {
+                              onDeleteMonth(month);
+                            }
+                          }}
+                          disabled={!canDelete}
+                          className={`p-1.5 rounded ${
+                            canDelete
+                              ? `${st.textHint} ${st.hoverDanger}`
+                              : `${st.btnDisabled} cursor-not-allowed`
+                          }`}
+                          title={isCurrent ? "Can't delete current month" : isLast ? "Can't delete last month" : 'Delete month'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => {
-                          if (canDelete && confirm(`Delete ${month}? This cannot be undone.`)) {
-                            onDeleteMonth(month);
-                          }
-                        }}
-                        disabled={!canDelete}
-                        className={`p-1.5 rounded ${
-                          canDelete
-                            ? 'hover:bg-red-900/50 text-slate-400 hover:text-red-400'
-                            : 'text-slate-600 cursor-not-allowed'
-                        }`}
-                        title={isCurrent ? "Can't delete current month" : isLast ? "Can't delete last month" : 'Delete month'}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Archive Export/Import */}
+              <div className={`${st.cardBg} rounded-lg p-4`}>
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-2`}>Archive (All Months)</h3>
+                <p className={`text-xs ${st.textDim} mb-3`}>
+                  Export or import all month data at once.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={onExportAllArchive}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 ${st.cardBgAlt} ${st.hover} rounded text-sm`}
+                  >
+                    <Download className="w-4 h-4" />
+                    Export Archive
+                  </button>
+                  <button
+                    onClick={() => archiveInputRef.current?.click()}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 ${st.cardBgAlt} ${st.hover} rounded text-sm`}
+                  >
+                    <Upload className="w-4 h-4" />
+                    Import Archive
+                  </button>
+                </div>
+              </div>
+
+              {/* Settings Export/Import */}
+              <div className={`${st.cardBg} rounded-lg p-4`}>
+                <h3 className={`text-sm font-medium ${st.textMuted} mb-2`}>Settings</h3>
+                <p className={`text-xs ${st.textDim} mb-3`}>
+                  Export or import practices, scale, and color settings independently.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={onExportSettings}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 ${st.cardBgAlt} ${st.hover} rounded text-sm`}
+                  >
+                    <Download className="w-4 h-4" />
+                    Export Settings
+                  </button>
+                  <button
+                    onClick={() => settingsInputRef.current?.click()}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 ${st.cardBgAlt} ${st.hover} rounded text-sm`}
+                  >
+                    <Upload className="w-4 h-4" />
+                    Import Settings
+                  </button>
+                </div>
               </div>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-700">
+        <div className={`p-4 border-t ${st.border}`}>
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 bg-cyber-500 hover:bg-cyber-600 rounded text-sm font-medium"
+            className="w-full px-4 py-2 bg-cyber-500 hover:bg-cyber-600 rounded text-sm font-medium text-white"
           >
             Done
           </button>
@@ -831,7 +971,7 @@ export default function App() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        store.importData(e.target.result);
+        store.importCurrentMonth(e.target.result);
       };
       reader.readAsText(file);
     }
@@ -926,7 +1066,7 @@ export default function App() {
 
               {/* Action buttons - always rendered, some invisible in view mode */}
               <button
-                onClick={store.exportData}
+                onClick={store.exportCurrentMonth}
                 className={`p-1.5 ${theme.mutedBg} ${theme.hover} rounded`}
                 title="Export"
               >
@@ -979,6 +1119,7 @@ export default function App() {
           colorPreset={store.colorPreset}
           colorPresets={store.colorPresets}
           ragColors={store.ragColors}
+          darkMode={store.darkMode}
           onUpdatePractice={store.updatePractice}
           onAddPractice={store.addPractice}
           onDeletePractice={store.deletePractice}
@@ -987,6 +1128,10 @@ export default function App() {
           onDeleteMonth={store.deleteMonth}
           onSetColorPreset={store.setColorPreset}
           onUpdateRagColor={store.updateRagColor}
+          onExportAllArchive={store.exportAllArchive}
+          onImportAllArchive={store.importAllArchive}
+          onExportSettings={store.exportSettings}
+          onImportSettings={store.importSettings}
           onClose={() => setShowSettings(false)}
         />
       )}
@@ -1100,6 +1245,60 @@ export default function App() {
               })()}
             </div>
 
+            {/* Squad Settings - Tracked & Weight */}
+            <div className={`${theme.cardAlt} rounded-lg p-4`}>
+              <div className="flex items-center justify-between flex-wrap gap-4">
+                {/* Tracked Toggle */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => editMode && store.updateSquad(currentBU.id, currentSquad.id, 'tracked', !currentSquad.tracked)}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
+                      currentSquad.tracked !== false
+                        ? 'bg-cyber-500/20 text-cyber-400'
+                        : `${theme.card} ${theme.muted}`
+                    } ${editMode ? 'cursor-pointer hover:opacity-80' : ''}`}
+                    disabled={!editMode}
+                  >
+                    {currentSquad.tracked !== false ? (
+                      <Eye className="w-4 h-4" />
+                    ) : (
+                      <EyeOff className="w-4 h-4" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {currentSquad.tracked !== false ? 'Tracked' : 'Untracked'}
+                    </span>
+                  </button>
+                  <span className={`text-xs ${theme.muted}`}>
+                    {currentSquad.tracked !== false
+                      ? 'Counts toward BU status'
+                      : "Doesn't impact BU status"}
+                  </span>
+                </div>
+
+                {/* Weight */}
+                <div className="flex items-center gap-3">
+                  <Scale className={`w-4 h-4 ${theme.muted}`} />
+                  <span className={`text-sm ${theme.muted}`}>Weight:</span>
+                  {editMode ? (
+                    <input
+                      type="number"
+                      min="0.1"
+                      max="10"
+                      step="0.1"
+                      value={currentSquad.weight || 1}
+                      onChange={(e) => store.updateSquad(currentBU.id, currentSquad.id, 'weight', parseFloat(e.target.value) || 1)}
+                      className={`w-16 ${theme.input} border rounded px-2 py-1 text-sm text-center`}
+                    />
+                  ) : (
+                    <span className="font-mono text-sm">{currentSquad.weight || 1}</span>
+                  )}
+                  <span className={`text-xs ${theme.muted}`}>
+                    (relative importance)
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* Practices */}
             <div className={`${theme.card} border rounded-xl p-5`}>
               <div className="flex items-center justify-between mb-4">
@@ -1192,59 +1391,24 @@ export default function App() {
                     />
                   )}
                 </div>
-                <div className="flex gap-4 flex-wrap">
-                  <div>
-                    <label className={`block text-sm ${theme.muted} mb-1`}>Trend</label>
-                    {!editMode ? (
-                      <div className={`flex items-center gap-2 ${trendConfig[currentSquad.monthlyUpdate.trend].color}`}>
-                        {(() => { const T = trendConfig[currentSquad.monthlyUpdate.trend]; return <T.Icon className="w-5 h-5" />; })()}
-                        <span className="text-sm font-medium">{trendConfig[currentSquad.monthlyUpdate.trend].label}</span>
-                      </div>
-                    ) : (
-                      <EditableSelect
-                        value={currentSquad.monthlyUpdate.trend}
-                        onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'monthlyUpdate.trend', v)}
-                        options={[
-                          { value: 'improving', label: '↗ Improving' },
-                          { value: 'stable', label: '→ Stable' },
-                          { value: 'declining', label: '↘ Needs Attention' },
-                        ]}
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <label className={`block text-sm ${theme.muted} mb-1`}>Key Metric</label>
-                    {!editMode ? (
-                      <p className="text-sm">
-                        <span>{currentSquad.monthlyUpdate.keyMetric.label}:</span>{' '}
-                        <span className="text-cyber-400 font-medium">{currentSquad.monthlyUpdate.keyMetric.value}</span>
-                        <span className={theme.muted}> / {currentSquad.monthlyUpdate.keyMetric.target}</span>
-                      </p>
-                    ) : (
-                      <div className="flex gap-2 items-center flex-wrap">
-                        <EditableText
-                          value={currentSquad.monthlyUpdate.keyMetric.label}
-                          onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'monthlyUpdate.keyMetric.label', v)}
-                          placeholder="Label"
-                          className="text-sm"
-                        />
-                        <span className={theme.muted}>:</span>
-                        <EditableText
-                          value={currentSquad.monthlyUpdate.keyMetric.value}
-                          onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'monthlyUpdate.keyMetric.value', v)}
-                          placeholder="Value"
-                          className="text-sm"
-                        />
-                        <span className={theme.muted}>/</span>
-                        <EditableText
-                          value={currentSquad.monthlyUpdate.keyMetric.target}
-                          onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'monthlyUpdate.keyMetric.target', v)}
-                          placeholder="Target"
-                          className="text-sm"
-                        />
-                      </div>
-                    )}
-                  </div>
+                <div>
+                  <label className={`block text-sm ${theme.muted} mb-1`}>Trend</label>
+                  {!editMode ? (
+                    <div className={`flex items-center gap-2 ${trendConfig[currentSquad.monthlyUpdate.trend].color}`}>
+                      {(() => { const T = trendConfig[currentSquad.monthlyUpdate.trend]; return <T.Icon className="w-5 h-5" />; })()}
+                      <span className="text-sm font-medium">{trendConfig[currentSquad.monthlyUpdate.trend].label}</span>
+                    </div>
+                  ) : (
+                    <EditableSelect
+                      value={currentSquad.monthlyUpdate.trend}
+                      onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'monthlyUpdate.trend', v)}
+                      options={[
+                        { value: 'improving', label: '↗ Improving' },
+                        { value: 'stable', label: '→ Stable' },
+                        { value: 'declining', label: '↘ Needs Attention' },
+                      ]}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1403,11 +1567,8 @@ export default function App() {
             <div className="grid sm:grid-cols-2 gap-5">
               {monthData.businessUnits.map((bu) => {
                 const squadStatuses = bu.squads.map((s) => s.status || 'red');
-                // Ignore 'none' status when determining dominant color
-                const activeStatuses = squadStatuses.filter(s => s !== 'none');
-                const hasRed = activeStatuses.includes('red');
-                const hasAmber = activeStatuses.includes('amber');
-                const dominantStatus = activeStatuses.length === 0 ? 'none' : hasRed ? 'red' : hasAmber ? 'amber' : 'green';
+                // Use weighted calculation based on tracked squads and their weights
+                const dominantStatus = getWeightedBuStatus(bu.squads);
                 const statusInfo = getStatusInfo(store.ragColors, dominantStatus);
 
                 const totalAdopted = bu.squads.reduce((sum, s) => {

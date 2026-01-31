@@ -82,7 +82,9 @@ const DEFAULT_DATA = {
             {
               id: "squad-1",
               name: "Squad 1",
-              status: "amber", // Manual RAG status: green, amber, red
+              status: "amber", // Manual RAG status: green, amber, red, none
+              tracked: true, // Whether this squad counts toward BU RAG
+              weight: 1, // Weight for BU RAG calculation (default 1)
               practices: {
                 embeddedSecurityExperts: false,
                 threatModeling: 1,
@@ -99,7 +101,6 @@ const DEFAULT_DATA = {
                 summary: "Click to edit this month's update",
                 nextPeriod: "Click to edit next period plans",
                 trend: "stable",
-                keyMetric: { label: "Metric", value: "0%", target: "100%" },
               },
             },
           ],
@@ -237,6 +238,8 @@ export function useStore() {
         id,
         name: "New Squad",
         status: "red", // Default to red for new squads
+        tracked: false, // New squads are untracked by default
+        weight: 1, // Default weight
         practices: Object.fromEntries(
           Object.entries(prev.practices).map(([key, p]) => [
             key,
@@ -247,7 +250,6 @@ export function useStore() {
           summary: "",
           nextPeriod: "",
           trend: "stable",
-          keyMetric: { label: "Metric", value: "", target: "" },
         },
       });
       return newData;
@@ -277,7 +279,144 @@ export function useStore() {
     });
   }, []);
 
-  // Export all data as JSON
+  // Export current month data only
+  const exportCurrentMonth = useCallback(() => {
+    const monthData = data.months[data.currentMonth];
+    const exportObj = {
+      type: 'month',
+      monthKey: data.currentMonth,
+      data: monthData,
+    };
+    const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cyberdash-month-${data.currentMonth}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [data]);
+
+  // Import current month data (replaces current month)
+  const importCurrentMonth = useCallback((jsonString) => {
+    try {
+      const imported = JSON.parse(jsonString);
+      if (imported.type === 'month' && imported.data) {
+        setData((prev) => {
+          const newData = JSON.parse(JSON.stringify(prev));
+          // Import to current month or to the month specified in the file
+          const targetMonth = imported.monthKey || prev.currentMonth;
+          newData.months[targetMonth] = imported.data;
+          if (!newData.months[newData.currentMonth]) {
+            newData.currentMonth = targetMonth;
+          }
+          return newData;
+        });
+        return true;
+      }
+      // Legacy full import support
+      if (imported.months) {
+        setData(imported);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Failed to import month:", e);
+      return false;
+    }
+  }, []);
+
+  // Export all archive (all months)
+  const exportAllArchive = useCallback(() => {
+    const exportObj = {
+      type: 'archive',
+      currentMonth: data.currentMonth,
+      months: data.months,
+    };
+    const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cyberdash-archive-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [data]);
+
+  // Import all archive (all months)
+  const importAllArchive = useCallback((jsonString) => {
+    try {
+      const imported = JSON.parse(jsonString);
+      if (imported.type === 'archive' && imported.months) {
+        setData((prev) => ({
+          ...prev,
+          currentMonth: imported.currentMonth || Object.keys(imported.months).sort().reverse()[0],
+          months: imported.months,
+        }));
+        return true;
+      }
+      // Legacy full import support
+      if (imported.months && !imported.type) {
+        setData((prev) => ({
+          ...prev,
+          currentMonth: imported.currentMonth || prev.currentMonth,
+          months: imported.months,
+        }));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Failed to import archive:", e);
+      return false;
+    }
+  }, []);
+
+  // Export settings (practices, scale, colors)
+  const exportSettings = useCallback(() => {
+    const exportObj = {
+      type: 'settings',
+      maturityScale: data.maturityScale,
+      practices: data.practices,
+      practiceOrder: data.practiceOrder,
+      ragColors: data.ragColors,
+      colorPreset: data.colorPreset,
+    };
+    const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cyberdash-settings-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [data]);
+
+  // Import settings
+  const importSettings = useCallback((jsonString) => {
+    try {
+      const imported = JSON.parse(jsonString);
+      if (imported.type === 'settings') {
+        setData((prev) => ({
+          ...prev,
+          maturityScale: imported.maturityScale || prev.maturityScale,
+          practices: imported.practices || prev.practices,
+          practiceOrder: imported.practiceOrder || prev.practiceOrder,
+          ragColors: imported.ragColors || prev.ragColors,
+          colorPreset: imported.colorPreset || prev.colorPreset,
+        }));
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Failed to import settings:", e);
+      return false;
+    }
+  }, []);
+
+  // Legacy export all data as JSON (for backwards compatibility)
   const exportData = useCallback(() => {
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
@@ -285,22 +424,33 @@ export function useStore() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `cyberdash-export-${data.currentMonth}.json`;
+    a.download = `cyberdash-full-export-${data.currentMonth}.json`;
     a.click();
     URL.revokeObjectURL(url);
   }, [data]);
 
-  // Import data from JSON
+  // Legacy import data from JSON (for backwards compatibility)
   const importData = useCallback((jsonString) => {
     try {
       const imported = JSON.parse(jsonString);
+      // Try to detect type and handle appropriately
+      if (imported.type === 'month') {
+        return importCurrentMonth(jsonString);
+      }
+      if (imported.type === 'archive') {
+        return importAllArchive(jsonString);
+      }
+      if (imported.type === 'settings') {
+        return importSettings(jsonString);
+      }
+      // Legacy full import
       setData(imported);
       return true;
     } catch (e) {
       console.error("Failed to import:", e);
       return false;
     }
-  }, []);
+  }, [importCurrentMonth, importAllArchive, importSettings]);
 
   // Reset to defaults
   const resetData = useCallback(() => {
@@ -483,8 +633,15 @@ export function useStore() {
     addSquad,
     deleteSquad,
     deleteBusinessUnit,
-    exportData,
-    importData,
+    // Export/Import functions
+    exportCurrentMonth,
+    importCurrentMonth,
+    exportAllArchive,
+    importAllArchive,
+    exportSettings,
+    importSettings,
+    exportData, // Legacy
+    importData, // Legacy
     resetData,
     updatePractice,
     addPractice,
