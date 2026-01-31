@@ -143,35 +143,75 @@ function BooleanPill({ value, target, compact = false }) {
   );
 }
 
-// Calculate weighted BU RAG status from tracked squads only
+// Calculate weighted BU RAG status from tracked squads
+// A "problem" team is one that's behind (red/amber) AND not improving
+// Improving teams get a bonus to reduce their negative impact
 function getWeightedBuStatus(squads) {
   // Filter to only tracked squads with valid status
   const trackedSquads = squads.filter(s => s.tracked !== false && s.status && s.status !== 'none');
 
   if (trackedSquads.length === 0) {
-    return 'none'; // No tracked squads = grey
+    return { status: 'none', details: { green: 0, amber: 0, red: 0, problems: 0, improving: 0 } };
   }
 
-  // Calculate weighted score: green=3, amber=2, red=1
+  // Base scores: green=3, amber=2, red=1
   const statusValue = { green: 3, amber: 2, red: 1 };
   let totalWeight = 0;
   let weightedSum = 0;
+  let problems = 0; // Teams that are behind AND not improving
+  let improving = 0; // Teams that are improving
+  let statusCounts = { green: 0, amber: 0, red: 0 };
 
   trackedSquads.forEach(squad => {
     const weight = squad.weight || 1;
-    const value = statusValue[squad.status] || 1;
+    const trend = squad.monthlyUpdate?.trend || 'stable';
+    let value = statusValue[squad.status] || 1;
+
+    // Count by status
+    if (statusCounts[squad.status] !== undefined) {
+      statusCounts[squad.status]++;
+    }
+
+    // Improving teams get a +0.5 bonus (they're heading in right direction)
+    if (trend === 'improving') {
+      value = Math.min(3, value + 0.5);
+      improving++;
+    }
+
+    // Teams that are behind (red/amber) AND declining/stable are problems
+    if ((squad.status === 'red' || squad.status === 'amber') && trend !== 'improving') {
+      problems++;
+      // Declining teams get penalized
+      if (trend === 'declining' || trend === 'needs-attention') {
+        value = Math.max(1, value - 0.5);
+      }
+    }
+
     totalWeight += weight;
     weightedSum += value * weight;
   });
 
-  if (totalWeight === 0) return 'none';
+  if (totalWeight === 0) {
+    return { status: 'none', details: { ...statusCounts, problems, improving } };
+  }
 
   const avgScore = weightedSum / totalWeight;
 
   // Convert back to status: 2.5+ = green, 1.5+ = amber, else red
-  if (avgScore >= 2.5) return 'green';
-  if (avgScore >= 1.5) return 'amber';
-  return 'red';
+  let status;
+  if (avgScore >= 2.5) status = 'green';
+  else if (avgScore >= 1.5) status = 'amber';
+  else status = 'red';
+
+  return {
+    status,
+    details: { ...statusCounts, problems, improving, avgScore: avgScore.toFixed(1) }
+  };
+}
+
+// Simple version for backward compatibility
+function getBuStatus(squads) {
+  return getWeightedBuStatus(squads).status;
 }
 
 // Get next month suggestion
@@ -1487,7 +1527,7 @@ export default function App() {
             <div className="grid sm:grid-cols-2 gap-5">
               {monthData.businessUnits.map((bu) => {
                 // Use weighted calculation based on tracked squads and their weights
-                const dominantStatus = getWeightedBuStatus(bu.squads);
+                const { status: dominantStatus, details: statusDetails } = getWeightedBuStatus(bu.squads);
                 const statusInfo = getStatusInfo(store.ragColors, dominantStatus);
 
                 // Calculate practice adoption across squads
@@ -1498,6 +1538,14 @@ export default function App() {
                   const type = squad.teamType || 'squad';
                   const typeInfo = store.teamTypes.find(t => t.id === type);
                   return typeInfo?.label || 'Squad';
+                };
+
+                // Get trend indicator for team
+                const getTrendIcon = (squad) => {
+                  const trend = squad.monthlyUpdate?.trend || 'stable';
+                  if (trend === 'improving') return '↗';
+                  if (trend === 'declining' || trend === 'needs-attention') return '↘';
+                  return null;
                 };
 
                 return (
@@ -1515,13 +1563,40 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Teams Section */}
+                    {/* Status Summary - shows calculation breakdown */}
+                    <div className="flex items-center gap-3 mb-4 text-xs text-white/70">
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        {statusDetails.green}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
+                        {statusDetails.amber}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                        {statusDetails.red}
+                      </span>
+                      {statusDetails.problems > 0 && (
+                        <span className="text-red-200" title="Teams behind and not improving">
+                          ⚠ {statusDetails.problems} stuck
+                        </span>
+                      )}
+                      {statusDetails.improving > 0 && (
+                        <span className="text-emerald-200" title="Teams improving">
+                          ↗ {statusDetails.improving}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Teams Section - Team Status */}
                     <div className="mb-4">
-                      <p className="text-xs text-white/50 mb-2">Teams ({bu.squads.length})</p>
+                      <p className="text-xs text-white/50 mb-2">Team Status ({bu.squads.length})</p>
                       <div className="flex flex-wrap gap-1.5">
                         {bu.squads.map((squad) => {
                           const squadStatus = squad.tracked === false ? 'none' : (squad.status || 'red');
                           const squadInfo = getStatusInfo(store.ragColors, squadStatus);
+                          const trendIcon = getTrendIcon(squad);
                           // Use white-based opacity for pills on colored background
                           const pillOpacity = squadStatus === 'green' ? 'bg-white/90' :
                                              squadStatus === 'amber' ? 'bg-white/70' :
@@ -1532,13 +1607,15 @@ export default function App() {
                               className="group relative"
                             >
                               <div
-                                className={`w-4 h-4 rounded-full cursor-help ${pillOpacity}`}
+                                className={`w-4 h-4 rounded-full cursor-help ${pillOpacity} flex items-center justify-center`}
                                 title={`${squad.name} (${getTeamLabel(squad)}): ${squadInfo.label}`}
-                              />
+                              >
+                                {trendIcon && <span className="text-[8px] leading-none">{trendIcon}</span>}
+                              </div>
                               {/* Hover tooltip */}
                               <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity">
                                 <div className="font-medium">{squad.name}</div>
-                                <div className="text-slate-400">{getTeamLabel(squad)} • {squadInfo.label}</div>
+                                <div className="text-slate-400">{getTeamLabel(squad)} • {squadInfo.label} {trendIcon && `• ${squad.monthlyUpdate?.trend || 'stable'}`}</div>
                               </div>
                             </div>
                           );
@@ -1546,47 +1623,51 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Practices Section */}
+                    {/* Practices Section - Adoption Status */}
                     <div>
-                      <p className="text-xs text-white/50 mb-2">Practices</p>
+                      <p className="text-xs text-white/50 mb-2">Practice Adoption</p>
                       <div className="flex flex-wrap gap-1.5">
                         {store.orderedPractices.map((practice) => {
                           const adoption = practiceAdoption[practice.id] || { adopted: 0, partial: 0, notAdopted: 0, na: 0, total: 0 };
                           const allNA = adoption.total === 0;
                           const allAdopted = adoption.total > 0 && adoption.adopted === adoption.total;
-                          const someAdopted = adoption.adopted > 0 || adoption.partial > 0;
-
-                          // Use white-based opacity for pills on colored background
-                          let pillClass = '';
-                          if (allNA) {
-                            pillClass = 'bg-white/10 border border-white/20';
-                          } else if (allAdopted) {
-                            pillClass = 'bg-white/90';
-                          } else if (someAdopted) {
-                            pillClass = 'bg-white/50';
-                          } else {
-                            pillClass = 'bg-white/25';
-                          }
+                          const partiallyAdopted = !allAdopted && (adoption.adopted > 0 || adoption.partial > 0);
+                          const noneAdopted = adoption.total > 0 && adoption.adopted === 0 && adoption.partial === 0;
 
                           return (
                             <div
                               key={practice.id}
                               className="group relative"
                             >
+                              {/* Half-filled pill for partial adoption */}
                               <div
-                                className={`w-4 h-4 rounded-full cursor-help ${pillClass}`}
+                                className="w-4 h-4 rounded-full cursor-help relative overflow-hidden"
                                 title={`${practice.name}: ${adoption.adopted}/${adoption.total} adopted`}
-                              />
+                              >
+                                {allNA ? (
+                                  <div className="w-full h-full bg-white/10 border border-white/20 rounded-full" />
+                                ) : allAdopted ? (
+                                  <div className="w-full h-full bg-white/90 rounded-full" />
+                                ) : partiallyAdopted ? (
+                                  // Half-filled effect using gradient
+                                  <div
+                                    className="w-full h-full rounded-full"
+                                    style={{
+                                      background: `linear-gradient(to top, rgba(255,255,255,0.8) ${Math.round((adoption.adopted / adoption.total) * 100)}%, rgba(255,255,255,0.25) ${Math.round((adoption.adopted / adoption.total) * 100)}%)`
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-white/25 rounded-full" />
+                                )}
+                              </div>
                               {/* Hover tooltip */}
                               <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity">
                                 <div className="font-medium">{practice.name}</div>
                                 <div className="text-slate-400">
                                   {allNA ? 'N/A for all teams' : (
                                     <>
-                                      {adoption.adopted} adopted
-                                      {adoption.partial > 0 && `, ${adoption.partial} partial`}
-                                      {adoption.notAdopted > 0 && `, ${adoption.notAdopted} behind`}
-                                      {adoption.na > 0 && `, ${adoption.na} N/A`}
+                                      {adoption.adopted}/{adoption.total} at target
+                                      {adoption.partial > 0 && ` (${adoption.partial} close)`}
                                     </>
                                   )}
                                 </div>
