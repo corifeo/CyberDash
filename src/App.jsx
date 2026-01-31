@@ -31,6 +31,19 @@ const DEFAULT_HEX_COLORS = {
   none: '#64748b',
 };
 
+// Trend detection thresholds (normalized score difference)
+// Teams need a larger change to be considered improving/declining
+const TREND_THRESHOLDS = {
+  team: 0.05,  // 5% change in practice score
+  bu: 0.03,    // 3% change in average score across teams
+};
+
+// Get the maximum maturity level from a scale (excludes N/A which is -1)
+function getMaxMaturityLevel(maturityScale) {
+  if (!maturityScale || maturityScale.length === 0) return 4;
+  return Math.max(...maturityScale.map(l => l.level).filter(l => l > 0));
+}
+
 // Get status color based on current vs target
 function getMaturityStatus(current, target, type) {
   if (type === 'boolean') {
@@ -43,7 +56,8 @@ function getMaturityStatus(current, target, type) {
 
 // Calculate a team's practice adoption score for trend comparison
 // Returns a normalized score based on practices only (not RAG status)
-function calculateTeamPracticeScore(squad, practices) {
+// maxMaturityLevel: the highest level in the maturity scale (default 4)
+function calculateTeamPracticeScore(squad, practices, maxMaturityLevel = 4) {
   if (!squad.practices) return 0;
   let score = 0;
   let total = 0;
@@ -58,7 +72,7 @@ function calculateTeamPracticeScore(squad, practices) {
       if (value === true) score += 1;
     } else {
       if (value === -1) return; // Skip N/A
-      total += 4; // Max maturity is typically 4
+      total += maxMaturityLevel;
       score += Math.max(0, value);
     }
   });
@@ -68,7 +82,8 @@ function calculateTeamPracticeScore(squad, practices) {
 
 // Calculate automatic trend for a team by comparing with previous month
 // Based purely on practice adoption, not RAG status
-function calculateAutoTrend(currentSquad, previousMonthData, buId, practices) {
+// maxMaturityLevel: the highest level in the maturity scale (default 4)
+function calculateAutoTrend(currentSquad, previousMonthData, buId, practices, maxMaturityLevel = 4) {
   if (!previousMonthData) return 'stable';
 
   // Find the same BU in previous month
@@ -79,20 +94,21 @@ function calculateAutoTrend(currentSquad, previousMonthData, buId, practices) {
   const previousSquad = previousBU.squads?.find(s => s.id === currentSquad.id);
   if (!previousSquad) return 'stable'; // New team = stable
 
-  const currentScore = calculateTeamPracticeScore(currentSquad, practices);
-  const previousScore = calculateTeamPracticeScore(previousSquad, practices);
+  const currentScore = calculateTeamPracticeScore(currentSquad, practices, maxMaturityLevel);
+  const previousScore = calculateTeamPracticeScore(previousSquad, practices, maxMaturityLevel);
 
   const diff = currentScore - previousScore;
 
-  // Use a threshold to determine significant change
-  if (diff > 0.05) return 'improving';
-  if (diff < -0.05) return 'declining';
+  // Use threshold to determine significant change
+  if (diff > TREND_THRESHOLDS.team) return 'improving';
+  if (diff < -TREND_THRESHOLDS.team) return 'declining';
   return 'stable';
 }
 
 // Calculate automatic trend for a BU by comparing practice adoption
 // Based purely on practice adoption across all teams, not RAG status
-function calculateBUAutoTrend(currentBU, previousMonthData, practices) {
+// maxMaturityLevel: the highest level in the maturity scale (default 4)
+function calculateBUAutoTrend(currentBU, previousMonthData, practices, maxMaturityLevel = 4) {
   if (!previousMonthData) return 'stable';
 
   const previousBU = previousMonthData.businessUnits?.find(b => b.id === currentBU.id);
@@ -104,15 +120,15 @@ function calculateBUAutoTrend(currentBU, previousMonthData, practices) {
 
   if (currentSquads.length === 0) return 'stable';
 
-  const currentAvg = currentSquads.reduce((sum, s) => sum + calculateTeamPracticeScore(s, practices), 0) / currentSquads.length;
+  const currentAvg = currentSquads.reduce((sum, s) => sum + calculateTeamPracticeScore(s, practices, maxMaturityLevel), 0) / currentSquads.length;
   const previousAvg = previousSquads.length > 0
-    ? previousSquads.reduce((sum, s) => sum + calculateTeamPracticeScore(s, practices), 0) / previousSquads.length
+    ? previousSquads.reduce((sum, s) => sum + calculateTeamPracticeScore(s, practices, maxMaturityLevel), 0) / previousSquads.length
     : currentAvg;
 
   const diff = currentAvg - previousAvg;
 
-  if (diff > 0.03) return 'improving';
-  if (diff < -0.03) return 'declining';
+  if (diff > TREND_THRESHOLDS.bu) return 'improving';
+  if (diff < -TREND_THRESHOLDS.bu) return 'declining';
   return 'stable';
 }
 
@@ -287,7 +303,8 @@ function BooleanPill({ value, target, compact = false }) {
 // practices and teamThresholds are needed to compute effective status for squads with auto-status
 // buTrend: optional BU-level trend for rule-based adjustments
 // previousMonthData and currentBU: used to compute team-level trends when team thresholds have trend rules
-function getWeightedBuStatus(squads, practices, teamThresholds, buThresholds = { green: 75, amber: 40 }, buTrend = 'stable', previousMonthData = null, currentBU = null) {
+// maxMaturityLevel: the highest level in the maturity scale (default 4)
+function getWeightedBuStatus(squads, practices, teamThresholds, buThresholds = { green: 75, amber: 40 }, buTrend = 'stable', previousMonthData = null, currentBU = null, maxMaturityLevel = 4) {
   // Filter to only tracked squads
   const trackedSquads = squads.filter(s => s.tracked !== false);
 
@@ -303,7 +320,7 @@ function getWeightedBuStatus(squads, practices, teamThresholds, buThresholds = {
     const weight = squad.weight || 1;
     // Calculate team trend if we have previous data
     const teamTrend = previousMonthData && currentBU
-      ? calculateAutoTrend(squad, previousMonthData, currentBU.id, practices)
+      ? calculateAutoTrend(squad, previousMonthData, currentBU.id, practices, maxMaturityLevel)
       : 'stable';
     // Get effective status (considering auto-status and trend for team rule)
     const effectiveStatus = getEffectiveSquadStatus(squad, practices, teamThresholds, teamTrend);
@@ -1482,7 +1499,8 @@ export default function App() {
               </h2>
               {(() => {
                 // Calculate trend for rule-based status calculation
-                const teamTrend = calculateAutoTrend(currentSquad, previousMonthData, currentBU.id, store.practices);
+                const maxLevel = getMaxMaturityLevel(store.maturityScale);
+                const teamTrend = calculateAutoTrend(currentSquad, previousMonthData, currentBU.id, store.practices, maxLevel);
                 const autoRag = calculateAutoRagStatus(currentSquad, store.practices, store.thresholds.team, teamTrend);
                 const isAutoStatus = currentSquad.autoStatus !== false; // Default to auto
                 const displayStatus = currentSquad.tracked === false ? 'none' : (isAutoStatus ? autoRag : (currentSquad.status || autoRag));
@@ -1690,7 +1708,8 @@ export default function App() {
                 <div>
                   <label className={`block text-sm ${theme.muted} mb-1`}>Trend</label>
                   {(() => {
-                    const autoTrend = calculateAutoTrend(currentSquad, previousMonthData, currentBU.id, store.practices);
+                    const maxLevel = getMaxMaturityLevel(store.maturityScale);
+                    const autoTrend = calculateAutoTrend(currentSquad, previousMonthData, currentBU.id, store.practices, maxLevel);
                     const trendInfo = trendConfig[autoTrend] || trendConfig.stable;
                     return (
                       <div className={`flex items-center gap-2 ${trendInfo.color}`}>
@@ -1746,7 +1765,8 @@ export default function App() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {currentBU.squads.map((squad) => {
                 // Calculate auto-trend first (needed for status calculation if using trend rules)
-                const autoTrend = calculateAutoTrend(squad, previousMonthData, currentBU.id, store.practices);
+                const maxLevel = getMaxMaturityLevel(store.maturityScale);
+                const autoTrend = calculateAutoTrend(squad, previousMonthData, currentBU.id, store.practices, maxLevel);
                 // Use effective status (considering auto-status and trend for rule-based calculation)
                 const displayStatus = getEffectiveSquadStatus(squad, store.practices, store.thresholds.team, autoTrend);
                 const statusInfo = getStatusInfo(store.ragColors, displayStatus);
@@ -1870,8 +1890,11 @@ export default function App() {
 
             <div className="grid sm:grid-cols-2 gap-5">
               {monthData.businessUnits.map((bu) => {
+                // Get max maturity level from scale
+                const maxLevel = getMaxMaturityLevel(store.maturityScale);
+
                 // Calculate BU-level trend first (needed for status calculation if using trend rules)
-                const buTrend = calculateBUAutoTrend(bu, previousMonthData, store.practices);
+                const buTrend = calculateBUAutoTrend(bu, previousMonthData, store.practices, maxLevel);
 
                 // Use weighted calculation based on tracked squads and their weights
                 // Pass buTrend and previous month data for trend-based rule calculations
@@ -1882,7 +1905,8 @@ export default function App() {
                   store.thresholds.bu,
                   buTrend,
                   previousMonthData,
-                  bu
+                  bu,
+                  maxLevel
                 );
                 const statusInfo = getStatusInfo(store.ragColors, dominantStatus);
 
@@ -1898,7 +1922,7 @@ export default function App() {
 
                 // Get automatic trend for a team (comparing with previous month)
                 const getTeamAutoTrend = (squad) => {
-                  return calculateAutoTrend(squad, previousMonthData, bu.id, store.practices);
+                  return calculateAutoTrend(squad, previousMonthData, bu.id, store.practices, maxLevel);
                 };
 
                 // Get trend icon for a team (using simple characters to avoid emoji rendering)

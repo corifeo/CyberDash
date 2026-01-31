@@ -733,8 +733,17 @@ export function useStore() {
   }, []);
 
   // Migrate practice IDs from timestamp-based to slug-based
+  // Returns the number of practices that were migrated
   const migratePracticeIds = useCallback(() => {
-    let migratedCount = 0;
+    // First, count how many timestamp IDs exist in current data
+    // This is done synchronously before setData to ensure accurate count
+    const timestampIds = Object.keys(data.practices).filter(isTimestampId);
+    const migratedCount = timestampIds.length;
+
+    if (migratedCount === 0) {
+      return 0;
+    }
+
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
 
@@ -746,7 +755,6 @@ export function useStore() {
           const newId = generateSlug(practice.name, existingIds);
           oldToNewMap[id] = newId;
           existingIds.push(newId);
-          migratedCount++;
         } else {
           existingIds.push(id);
         }
@@ -784,7 +792,7 @@ export function useStore() {
     });
 
     return migratedCount;
-  }, []);
+  }, [data.practices]);
 
   // Load test data (pre-populated with 4 BUs and teams)
   const loadTestData = useCallback(() => {
