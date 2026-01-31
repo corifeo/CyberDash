@@ -824,12 +824,12 @@ function SettingsModal({
                       </div>
                       {/* Description row */}
                       <div className="pl-8">
-                        <input
-                          type="text"
+                        <textarea
                           value={practice.description || ''}
                           onChange={(e) => onUpdatePractice(practice.id, 'description', e.target.value)}
                           placeholder="Add description..."
-                          className={`w-full ${st.input} border rounded px-2 py-1 text-xs focus:border-cyber-500 outline-none`}
+                          rows={2}
+                          className={`w-full ${st.input} border rounded px-2 py-1.5 text-xs focus:border-cyber-500 outline-none resize-none`}
                         />
                       </div>
                     </div>
@@ -886,12 +886,12 @@ function SettingsModal({
                         className={`w-12 ${st.input} border rounded px-2 py-2 text-sm text-center focus:border-cyber-500 outline-none`}
                       />
                     </div>
-                    <input
-                      type="text"
+                    <textarea
                       value={level.description || ''}
                       onChange={(e) => onUpdateMaturityScale(idx, 'description', e.target.value)}
                       placeholder="Description (shown on hover)..."
-                      className={`w-full ${st.input} border rounded px-3 py-1.5 text-xs focus:border-cyber-500 outline-none ml-11`}
+                      rows={2}
+                      className={`w-full ${st.input} border rounded px-3 py-1.5 text-xs focus:border-cyber-500 outline-none resize-none`}
                     />
                   </div>
                 ))}
@@ -1372,40 +1372,40 @@ export default function App() {
       {/* New Month Modal */}
       {showNewMonth && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-md">
+          <div className={`${theme.card} border rounded-xl p-6 w-full max-w-md`}>
             <h2 className="text-lg font-semibold mb-4">Create New Month</h2>
-            <p className="text-sm text-slate-400 mb-4">
+            <p className={`text-sm ${theme.muted} mb-4`}>
               Creates a copy of current month's data with cleared update summaries.
             </p>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-slate-400 mb-1">Month Key</label>
+                <label className={`block text-sm ${theme.muted} mb-1`}>Month Key</label>
                 <input
                   type="text"
                   value={newMonthKey}
                   onChange={(e) => setNewMonthKey(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2"
+                  className={`w-full ${theme.input} border rounded px-3 py-2`}
                 />
               </div>
               <div>
-                <label className="block text-sm text-slate-400 mb-1">Display Label</label>
+                <label className={`block text-sm ${theme.muted} mb-1`}>Display Label</label>
                 <input
                   type="text"
                   value={newMonthLabel}
                   onChange={(e) => setNewMonthLabel(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2"
+                  className={`w-full ${theme.input} border rounded px-3 py-2`}
                 />
               </div>
               <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => setShowNewMonth(false)}
-                  className="flex-1 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded"
+                  className={`flex-1 px-4 py-2 ${theme.mutedBg} ${theme.hover} rounded`}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCreateMonth}
-                  className="flex-1 px-4 py-2 bg-cyber-500 hover:bg-cyber-600 rounded"
+                  className="flex-1 px-4 py-2 bg-cyber-500 hover:bg-cyber-600 rounded text-white"
                 >
                   Create
                 </button>
@@ -1515,7 +1515,7 @@ export default function App() {
                     <input
                       type="number"
                       min="0.1"
-                      max="10"
+                      max="1"
                       step="0.1"
                       value={currentSquad.weight || 1}
                       onChange={(e) => store.updateSquad(currentBU.id, currentSquad.id, 'weight', parseFloat(e.target.value) || 1)}
@@ -1708,6 +1708,17 @@ export default function App() {
                         {Object.entries(store.practices).map(([key, def]) => {
                           const value = squad.practices[key];
                           const target = def.target || (def.type === 'boolean' ? true : 3);
+                          // Handle N/A values - show as grey/muted
+                          const isNA = def.type === 'boolean' ? value === 'na' : value === -1;
+                          if (isNA) {
+                            return (
+                              <div
+                                key={key}
+                                className="w-3 h-3 rounded-full bg-white/10 border border-white/20"
+                                title={`${def.name}: N/A`}
+                              />
+                            );
+                          }
                           if (def.type === 'boolean') {
                             return (
                               <div
