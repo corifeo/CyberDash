@@ -1,19 +1,45 @@
 import { useState, useEffect, useCallback } from 'react';
 
-// Import presets
-import DEFAULT_PRESET from '../defaults/presets/default.json';
-import CMM_PRESET from '../defaults/presets/cmm.json';
-
-// Import test data
+// Import default practices and test data
+import DEFAULT_PRACTICES from '../defaults/practices.json';
 import TEST_DATA from '../defaults/testData.json';
 
-// Available presets
-const PRESETS = {
-  default: DEFAULT_PRESET,
-  cmm: CMM_PRESET,
+// Default maturity scale
+const DEFAULT_MATURITY_SCALE = [
+  { level: -1, label: "N/A", short: "N/A", description: "Not applicable to this team" },
+  { level: 0, label: "Not Started", short: "0", description: "Practice not yet initiated" },
+  { level: 1, label: "Initial", short: "1", description: "Ad-hoc, reactive approach with no formal process" },
+  { level: 2, label: "Developing", short: "2", description: "Basic process defined but inconsistently applied" },
+  { level: 3, label: "Defined", short: "3", description: "Standardized process consistently followed" },
+  { level: 4, label: "Managed", short: "4", description: "Process measured and continuously improved" },
+];
+
+// Default RAG colors
+const DEFAULT_RAG_COLORS = {
+  green: { hex: "#059669", label: "Strong" },
+  amber: { hex: "#d97706", label: "Developing" },
+  red: { hex: "#dc2626", label: "Early Stage" },
+  none: { hex: "#64748b", label: "Not Tracked" },
 };
 
-// Available color themes (can be applied on top of any preset)
+// Default team types
+const DEFAULT_TEAM_TYPES = [
+  { id: "squad", label: "Squad" },
+  { id: "tribe", label: "Tribe" },
+  { id: "team", label: "Team" },
+  { id: "platform", label: "Platform Team" },
+];
+
+// Default thresholds (percentage-based for both BU and Team)
+// Both use the same mechanic: percentage of "good" score
+const DEFAULT_THRESHOLDS = {
+  // For teams: % of practices meeting target
+  team: { green: 75, amber: 40 },
+  // For BUs: % of teams that are green (weighted)
+  bu: { green: 75, amber: 40 },
+};
+
+// Available color themes
 const COLOR_THEMES = {
   default: {
     green: { hex: '#059669' },
@@ -41,50 +67,54 @@ const COLOR_THEMES = {
   },
 };
 
-// Build default data from a preset
-function buildDataFromPreset(preset) {
-  return {
-    currentMonth: "2025-01",
-    preset: preset.id,
-    maturityScale: preset.maturityScale,
-    practices: preset.practices,
-    practiceOrder: preset.practiceOrder,
-    ragColors: preset.ragColors,
-    teamTypes: preset.teamTypes,
-    buThresholds: preset.thresholds?.bu || { green: 2.5, amber: 1.5 },
-    teamThresholds: preset.thresholds?.team || { green: 0.75, amber: 0.4 },
-    darkMode: true,
-    colorTheme: 'default',
-    months: {
-      "2025-01": {
-        reportingPeriod: "January 2025",
-        businessUnits: [],
-      },
-    },
-  };
-}
+// Default practice order
+const DEFAULT_PRACTICE_ORDER = [
+  "embeddedSecurityExperts",
+  "threatModeling",
+  "secureCodeReview",
+  "automatedSecurityTesting",
+  "dependencyScanning",
+  "secretsManagement",
+  "securityRequirements",
+  "vulnerabilityManagement",
+  "incidentResponse",
+  "securityTesting",
+];
 
-// Default starter data (using default preset)
-const DEFAULT_DATA = buildDataFromPreset(DEFAULT_PRESET);
+// Default starter data
+const DEFAULT_DATA = {
+  currentMonth: "2025-01",
+  maturityScale: DEFAULT_MATURITY_SCALE,
+  practices: DEFAULT_PRACTICES,
+  practiceOrder: DEFAULT_PRACTICE_ORDER,
+  ragColors: DEFAULT_RAG_COLORS,
+  teamTypes: DEFAULT_TEAM_TYPES,
+  thresholds: DEFAULT_THRESHOLDS,
+  darkMode: true,
+  colorTheme: 'default',
+  months: {
+    "2025-01": {
+      reportingPeriod: "January 2025",
+      businessUnits: [],
+    },
+  },
+};
 
 const STORAGE_KEY = "cyberdash-data";
 
 // Generate a URL-friendly slug from a practice name
 function generateSlug(name, existingIds = []) {
-  // Convert to camelCase slug
   let slug = name
     .trim()
-    .replace(/[^a-zA-Z0-9\s]/g, '') // Remove special chars
-    .replace(/\s+(.)/g, (_, c) => c.toUpperCase()) // camelCase
-    .replace(/\s/g, '') // Remove remaining spaces
-    .replace(/^(.)/, (_, c) => c.toLowerCase()); // lowercase first char
+    .replace(/[^a-zA-Z0-9\s]/g, '')
+    .replace(/\s+(.)/g, (_, c) => c.toUpperCase())
+    .replace(/\s/g, '')
+    .replace(/^(.)/, (_, c) => c.toLowerCase());
 
-  // Ensure slug is not empty
   if (!slug) {
     slug = 'practice';
   }
 
-  // Handle duplicates by appending a number
   let finalSlug = slug;
   let counter = 2;
   while (existingIds.includes(finalSlug)) {
@@ -104,7 +134,17 @@ function loadData() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      // Migrate old threshold format if needed
+      if (parsed.buThresholds && !parsed.thresholds) {
+        parsed.thresholds = {
+          team: parsed.teamThresholds || DEFAULT_THRESHOLDS.team,
+          bu: parsed.buThresholds || DEFAULT_THRESHOLDS.bu,
+        };
+        delete parsed.buThresholds;
+        delete parsed.teamThresholds;
+      }
+      return parsed;
     }
   } catch (e) {
     console.error("Failed to load data:", e);
@@ -144,12 +184,10 @@ export function useStore() {
   const createNewMonth = useCallback((monthKey, label) => {
     setData((prev) => {
       const currentData = prev.months[prev.currentMonth];
-      // Deep copy - keep all practice data, just clear monthly update summaries
       const newMonthData = JSON.parse(JSON.stringify(currentData));
       newMonthData.reportingPeriod = label;
       newMonthData.businessUnits.forEach((bu) => {
         bu.squads.forEach((squad) => {
-          // Keep practices, trend, and metric structure - just clear text summaries
           squad.monthlyUpdate.summary = "";
           squad.monthlyUpdate.nextPeriod = "";
         });
@@ -173,7 +211,6 @@ export function useStore() {
       const squad = bu.squads.find((s) => s.id === squadId);
       if (!squad) return prev;
 
-      // Navigate to nested path and set value
       const parts = path.split(".");
       let target = squad;
       for (let i = 0; i < parts.length - 1; i++) {
@@ -226,10 +263,11 @@ export function useStore() {
       bu.squads.push({
         id,
         name: `New ${typeInfo.label}`,
-        teamType: teamType, // 'squad', 'tribe', etc.
-        status: "red", // Default to red for new teams
-        tracked: false, // New teams are untracked by default
-        weight: 1, // Default weight
+        teamType: teamType,
+        status: "red",
+        tracked: false,
+        autoStatus: true, // Enable auto-status by default
+        weight: 1,
         practices: Object.fromEntries(
           Object.entries(prev.practices).map(([key, p]) => [
             key,
@@ -288,14 +326,13 @@ export function useStore() {
     URL.revokeObjectURL(url);
   }, [data]);
 
-  // Import current month data (replaces current month)
+  // Import current month data
   const importCurrentMonth = useCallback((jsonString) => {
     try {
       const imported = JSON.parse(jsonString);
       if (imported.type === 'month' && imported.data) {
         setData((prev) => {
           const newData = JSON.parse(JSON.stringify(prev));
-          // Import to current month or to the month specified in the file
           const targetMonth = imported.monthKey || prev.currentMonth;
           newData.months[targetMonth] = imported.data;
           if (!newData.months[newData.currentMonth]) {
@@ -305,7 +342,6 @@ export function useStore() {
         });
         return true;
       }
-      // Legacy full import support
       if (imported.months) {
         setData(imported);
         return true;
@@ -317,7 +353,7 @@ export function useStore() {
     }
   }, []);
 
-  // Export all archive (all months)
+  // Export all archive
   const exportAllArchive = useCallback(() => {
     const exportObj = {
       type: 'archive',
@@ -335,7 +371,7 @@ export function useStore() {
     URL.revokeObjectURL(url);
   }, [data]);
 
-  // Import all archive (all months)
+  // Import all archive
   const importAllArchive = useCallback((jsonString) => {
     try {
       const imported = JSON.parse(jsonString);
@@ -347,7 +383,6 @@ export function useStore() {
         }));
         return true;
       }
-      // Legacy full import support
       if (imported.months && !imported.type) {
         setData((prev) => ({
           ...prev,
@@ -363,7 +398,7 @@ export function useStore() {
     }
   }, []);
 
-  // Export settings (practices, scale, colors)
+  // Export settings
   const exportSettings = useCallback(() => {
     const exportObj = {
       type: 'settings',
@@ -371,7 +406,8 @@ export function useStore() {
       practices: data.practices,
       practiceOrder: data.practiceOrder,
       ragColors: data.ragColors,
-      colorPreset: data.colorPreset,
+      thresholds: data.thresholds,
+      colorTheme: data.colorTheme,
     };
     const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
       type: "application/json",
@@ -395,7 +431,8 @@ export function useStore() {
           practices: imported.practices || prev.practices,
           practiceOrder: imported.practiceOrder || prev.practiceOrder,
           ragColors: imported.ragColors || prev.ragColors,
-          colorPreset: imported.colorPreset || prev.colorPreset,
+          thresholds: imported.thresholds || prev.thresholds,
+          colorTheme: imported.colorTheme || prev.colorTheme,
         }));
         return true;
       }
@@ -406,7 +443,7 @@ export function useStore() {
     }
   }, []);
 
-  // Legacy export all data as JSON (for backwards compatibility)
+  // Legacy export all data
   const exportData = useCallback(() => {
     const blob = new Blob([JSON.stringify(data, null, 2)], {
       type: "application/json",
@@ -419,11 +456,10 @@ export function useStore() {
     URL.revokeObjectURL(url);
   }, [data]);
 
-  // Legacy import data from JSON (for backwards compatibility)
+  // Legacy import data
   const importData = useCallback((jsonString) => {
     try {
       const imported = JSON.parse(jsonString);
-      // Try to detect type and handle appropriately
       if (imported.type === 'month') {
         return importCurrentMonth(jsonString);
       }
@@ -433,7 +469,6 @@ export function useStore() {
       if (imported.type === 'settings') {
         return importSettings(jsonString);
       }
-      // Legacy full import
       setData(imported);
       return true;
     } catch (e) {
@@ -447,7 +482,7 @@ export function useStore() {
     setData(DEFAULT_DATA);
   }, []);
 
-  // Reset current month to previous period's data (or blank if no previous)
+  // Reset current month to previous period's data
   const resetToLastPeriod = useCallback(() => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
@@ -455,18 +490,14 @@ export function useStore() {
       const currentIndex = sortedMonths.indexOf(newData.currentMonth);
 
       let resetBusinessUnits;
-
-      // If no previous month exists, reset to blank state
       if (currentIndex < 0 || currentIndex >= sortedMonths.length - 1) {
         resetBusinessUnits = [];
       } else {
         const previousMonth = sortedMonths[currentIndex + 1];
         const previousData = newData.months[previousMonth];
-        // Deep clone the previous month's business units
         resetBusinessUnits = JSON.parse(JSON.stringify(previousData.businessUnits));
       }
 
-      // Apply to current month, keeping the current reporting period label
       newData.months[newData.currentMonth] = {
         ...newData.months[newData.currentMonth],
         businessUnits: resetBusinessUnits,
@@ -502,22 +533,18 @@ export function useStore() {
   const addPractice = useCallback((name, type = 'maturity', color = null) => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
-      // Generate a slug-based ID from the practice name
       const existingIds = Object.keys(newData.practices);
       const id = generateSlug(name, existingIds);
       const defaultTarget = type === 'boolean' ? true : 3;
       const practiceColor = color || generateRandomColor();
 
-      // Add to practice definitions
       newData.practices[id] = { name, type, target: defaultTarget, color: practiceColor };
 
-      // Add to practice order
       if (!newData.practiceOrder) {
         newData.practiceOrder = Object.keys(newData.practices);
       }
       newData.practiceOrder.push(id);
 
-      // Add default value to all squads in all months
       Object.values(newData.months).forEach((month) => {
         month.businessUnits.forEach((bu) => {
           bu.squads.forEach((squad) => {
@@ -535,15 +562,12 @@ export function useStore() {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
 
-      // Remove from practice definitions
       delete newData.practices[practiceId];
 
-      // Remove from practice order
       if (newData.practiceOrder) {
         newData.practiceOrder = newData.practiceOrder.filter(id => id !== practiceId);
       }
 
-      // Remove from all squads in all months
       Object.values(newData.months).forEach((month) => {
         month.businessUnits.forEach((bu) => {
           bu.squads.forEach((squad) => {
@@ -573,7 +597,6 @@ export function useStore() {
   // Delete a month
   const deleteMonth = useCallback((monthKey) => {
     setData((prev) => {
-      // Don't delete if it's the only month or current month
       const monthKeys = Object.keys(prev.months);
       if (monthKeys.length <= 1) return prev;
       if (monthKey === prev.currentMonth) return prev;
@@ -589,7 +612,7 @@ export function useStore() {
     setData((prev) => ({ ...prev, darkMode: enabled }));
   }, []);
 
-  // Set color theme (applies color scheme on top of current preset)
+  // Set color theme
   const setColorPreset = useCallback((themeName) => {
     setData((prev) => {
       const theme = COLOR_THEMES[themeName];
@@ -607,21 +630,21 @@ export function useStore() {
     });
   }, []);
 
-  // Update RAG color (hex or label)
+  // Update RAG color
   const updateRagColor = useCallback((status, field, value) => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
-      if (!newData.ragColors) newData.ragColors = DEFAULT_PRESET.ragColors;
+      if (!newData.ragColors) newData.ragColors = DEFAULT_RAG_COLORS;
       if (!newData.ragColors[status]) {
         newData.ragColors[status] = { hex: '#888888', label: status };
       }
       newData.ragColors[status][field] = value;
-      newData.colorTheme = 'custom'; // Mark as custom when user changes colors
+      newData.colorTheme = 'custom';
       return newData;
     });
   }, []);
 
-  // Update RAG label (convenience function)
+  // Update RAG label
   const updateRagLabel = useCallback((status, label) => {
     updateRagColor(status, 'label', label);
   }, [updateRagColor]);
@@ -652,37 +675,35 @@ export function useStore() {
     });
   }, []);
 
-  // Update BU status thresholds
-  const updateBuThreshold = useCallback((level, value) => {
+  // Update threshold (unified for both BU and team)
+  const updateThreshold = useCallback((type, level, value) => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
-      if (!newData.buThresholds) {
-        newData.buThresholds = DEFAULT_BU_THRESHOLDS;
+      if (!newData.thresholds) {
+        newData.thresholds = DEFAULT_THRESHOLDS;
       }
-      // Ensure value is a valid number between 1 and 3
-      const numValue = parseFloat(value);
-      if (!isNaN(numValue) && numValue >= 1 && numValue <= 3) {
-        newData.buThresholds[level] = numValue;
+      if (!newData.thresholds[type]) {
+        newData.thresholds[type] = DEFAULT_THRESHOLDS[type];
+      }
+      const numValue = parseInt(value);
+      if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
+        newData.thresholds[type][level] = numValue;
       }
       return newData;
     });
   }, []);
 
   // Migrate practice IDs from timestamp-based to slug-based
-  // Returns { migrated: number, total: number } with count of migrated practices
   const migratePracticeIds = useCallback(() => {
     let migratedCount = 0;
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
 
-      // Find all practices with timestamp IDs
       const oldToNewMap = {};
       const existingIds = [];
 
-      // First pass: collect non-timestamp IDs and build migration map
       Object.entries(newData.practices).forEach(([id, practice]) => {
         if (isTimestampId(id)) {
-          // Generate new slug from practice name
           const newId = generateSlug(practice.name, existingIds);
           oldToNewMap[id] = newId;
           existingIds.push(newId);
@@ -692,12 +713,10 @@ export function useStore() {
         }
       });
 
-      // If nothing to migrate, return unchanged
       if (Object.keys(oldToNewMap).length === 0) {
         return prev;
       }
 
-      // Second pass: update practices object with new IDs
       const newPractices = {};
       Object.entries(newData.practices).forEach(([id, practice]) => {
         const newId = oldToNewMap[id] || id;
@@ -705,12 +724,10 @@ export function useStore() {
       });
       newData.practices = newPractices;
 
-      // Update practice order
       if (newData.practiceOrder) {
         newData.practiceOrder = newData.practiceOrder.map(id => oldToNewMap[id] || id);
       }
 
-      // Update all squad practices in all months
       Object.values(newData.months).forEach((month) => {
         month.businessUnits.forEach((bu) => {
           bu.squads.forEach((squad) => {
@@ -728,126 +745,6 @@ export function useStore() {
     });
 
     return migratedCount;
-  }, []);
-
-  // Load a preset (completely resets data with fresh preset configuration)
-  // This is a destructive operation - all existing data will be lost
-  const loadPreset = useCallback((presetId) => {
-    const preset = PRESETS[presetId];
-    if (!preset) return false;
-
-    // Build fresh data from preset - this resets everything
-    const freshData = buildDataFromPreset(preset);
-    setData(freshData);
-
-    return true;
-  }, []);
-
-  // Reset configuration to current preset defaults (keeps data)
-  const resetToPresetDefaults = useCallback(() => {
-    setData((prev) => {
-      const presetId = prev.preset || 'default';
-      const preset = PRESETS[presetId];
-      if (!preset) return prev;
-
-      const newData = JSON.parse(JSON.stringify(prev));
-
-      // Reset configuration to preset defaults
-      newData.maturityScale = preset.maturityScale;
-      newData.practices = preset.practices;
-      newData.practiceOrder = preset.practiceOrder;
-      newData.ragColors = preset.ragColors;
-      newData.teamTypes = preset.teamTypes;
-      newData.buThresholds = preset.thresholds?.bu || { green: 2.5, amber: 1.5 };
-      newData.teamThresholds = preset.thresholds?.team || { green: 0.75, amber: 0.4 };
-
-      return newData;
-    });
-  }, []);
-
-  // Update team auto-RAG thresholds
-  const updateTeamThreshold = useCallback((level, value) => {
-    setData((prev) => {
-      const newData = JSON.parse(JSON.stringify(prev));
-      if (!newData.teamThresholds) {
-        newData.teamThresholds = { green: 0.75, amber: 0.4 };
-      }
-      const numValue = parseFloat(value);
-      if (!isNaN(numValue) && numValue >= 0 && numValue <= 1) {
-        newData.teamThresholds[level] = numValue;
-      }
-      return newData;
-    });
-  }, []);
-
-  // Export current configuration as a preset
-  const exportAsPreset = useCallback((name, description) => {
-    const exportObj = {
-      id: 'custom-' + Date.now(),
-      name: name || 'Custom Preset',
-      description: description || 'Exported from CyberDash',
-      version: '1.0',
-      practices: data.practices,
-      practiceOrder: data.practiceOrder,
-      maturityScale: data.maturityScale,
-      ragColors: data.ragColors,
-      teamTypes: data.teamTypes,
-      thresholds: {
-        bu: data.buThresholds,
-        team: data.teamThresholds,
-      },
-    };
-    const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `cyberdash-preset-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [data]);
-
-  // Import a custom preset
-  const importPreset = useCallback((jsonString) => {
-    try {
-      const preset = JSON.parse(jsonString);
-      if (!preset.practices || !preset.maturityScale) {
-        return false;
-      }
-      // Load the imported preset
-      setData((prev) => {
-        const newData = JSON.parse(JSON.stringify(prev));
-
-        newData.preset = preset.id || 'custom';
-        newData.maturityScale = preset.maturityScale;
-        newData.practices = preset.practices;
-        newData.practiceOrder = preset.practiceOrder || Object.keys(preset.practices);
-        newData.ragColors = preset.ragColors || prev.ragColors;
-        newData.teamTypes = preset.teamTypes || prev.teamTypes;
-        newData.buThresholds = preset.thresholds?.bu || { green: 2.5, amber: 1.5 };
-        newData.teamThresholds = preset.thresholds?.team || { green: 0.75, amber: 0.4 };
-
-        // Initialize practices for all existing squads
-        Object.values(newData.months).forEach((month) => {
-          month.businessUnits.forEach((bu) => {
-            bu.squads.forEach((squad) => {
-              const newPractices = {};
-              Object.entries(preset.practices).forEach(([key, p]) => {
-                newPractices[key] = squad.practices?.[key] ?? (p.type === 'boolean' ? false : 0);
-              });
-              squad.practices = newPractices;
-            });
-          });
-        });
-
-        return newData;
-      });
-      return true;
-    } catch (e) {
-      console.error('Failed to import preset:', e);
-      return false;
-    }
   }, []);
 
   // Load test data (pre-populated with 4 BUs and teams)
@@ -869,9 +766,8 @@ export function useStore() {
     .filter(id => data.practices[id])
     .map(id => ({ id, ...data.practices[id] }));
 
-  // Get current preset info
-  const currentPresetId = data.preset || 'default';
-  const currentPreset = PRESETS[currentPresetId];
+  // Get thresholds with defaults
+  const thresholds = data.thresholds || DEFAULT_THRESHOLDS;
 
   return {
     data,
@@ -880,19 +776,13 @@ export function useStore() {
     practices: data.practices,
     practiceOrder,
     orderedPractices,
-    maturityScale: data.maturityScale || DEFAULT_PRESET.maturityScale,
-    ragColors: data.ragColors || DEFAULT_PRESET.ragColors,
-    teamTypes: data.teamTypes || DEFAULT_PRESET.teamTypes,
-    buThresholds: data.buThresholds || { green: 2.5, amber: 1.5 },
-    teamThresholds: data.teamThresholds || { green: 0.75, amber: 0.4 },
+    maturityScale: data.maturityScale || DEFAULT_MATURITY_SCALE,
+    ragColors: data.ragColors || DEFAULT_RAG_COLORS,
+    teamTypes: data.teamTypes || DEFAULT_TEAM_TYPES,
+    thresholds,
     darkMode: data.darkMode !== false,
     colorTheme: data.colorTheme || 'default',
     colorThemes: COLOR_THEMES,
-    // Preset system
-    presets: PRESETS,
-    presetList: Object.entries(PRESETS).map(([id, p]) => ({ id, name: p.name, description: p.description })),
-    currentPresetId,
-    currentPreset,
     months: Object.keys(data.months).sort().reverse(),
     setCurrentMonth,
     createNewMonth,
@@ -903,7 +793,6 @@ export function useStore() {
     addSquad,
     deleteSquad,
     deleteBusinessUnit,
-    // Export/Import functions
     exportCurrentMonth,
     importCurrentMonth,
     exportAllArchive,
@@ -919,8 +808,7 @@ export function useStore() {
     deletePractice,
     updateMaturityScale,
     updateTeamType,
-    updateBuThreshold,
-    updateTeamThreshold,
+    updateThreshold,
     setDarkMode,
     setColorPreset,
     updateRagColor,
@@ -928,12 +816,6 @@ export function useStore() {
     reorderPractice,
     migratePracticeIds,
     hasTimestampIds,
-    // Preset functions
-    loadPreset,
-    resetToPresetDefaults,
-    exportAsPreset,
-    importPreset,
-    // Test data
     loadTestData,
   };
 }
