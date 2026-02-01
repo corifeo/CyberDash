@@ -34,7 +34,7 @@ import {
   getWeightedBuStatus,
   getNextMonthSuggestion,
 } from './utils/calculations';
-import StatusRulesTab from './components/StatusRulesTab';
+import StatusRulesModal from './components/StatusRulesModal';
 
 // Default hex colors for status (used in settings modal)
 const DEFAULT_HEX_COLORS = {
@@ -814,7 +814,6 @@ export default function App() {
   const goHome = () => {
     setSelectedBU(null);
     setSelectedSquad(null);
-    setShowStatusRules(false);
   };
 
   const openNewMonthModal = () => {
@@ -1066,13 +1065,7 @@ export default function App() {
           <button onClick={goHome} className={`${theme.muted} hover:opacity-70 transition-colors`}>
             Overview
           </button>
-          {showStatusRules && (
-            <>
-              <ChevronRight className={`w-5 h-5 ${theme.muted}`} />
-              <span className="font-semibold">Status Rules</span>
-            </>
-          )}
-          {currentBU && !showStatusRules && (
+          {currentBU && (
             <>
               <ChevronRight className={`w-5 h-5 ${theme.muted}`} />
               <button
@@ -1083,7 +1076,7 @@ export default function App() {
               </button>
             </>
           )}
-          {currentSquad && !showStatusRules && (
+          {currentSquad && (
             <>
               <ChevronRight className={`w-5 h-5 ${theme.muted}`} />
               <span className="font-semibold">{currentSquad.name}</span>
@@ -1091,17 +1084,20 @@ export default function App() {
           )}
         </nav>
 
-        {/* Status Rules View */}
-        {showStatusRules ? (
-          <StatusRulesTab
+        {/* Status Rules Modal */}
+        {showStatusRules && (
+          <StatusRulesModal
             statusRules={store.statusRules}
             ragColors={store.ragColors}
             darkMode={store.darkMode}
             onUpdateThreshold={store.updateThreshold}
             onToggleRule={store.toggleStatusRule}
             onUpdateRuleConfig={store.updateStatusRuleConfig}
+            onClose={() => setShowStatusRules(false)}
           />
-        ) : currentSquad && currentBU ? (
+        )}
+
+        {currentSquad && currentBU ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-bold">

@@ -189,7 +189,8 @@ export function getWeightedAdoptedCount(squadPractices, practices, statusRules) 
 
 // Calculate automatic RAG status for a team based on practice adoption
 // Supports toggleable rules from statusRules configuration
-// Returns 'green', 'amber', 'red', or 'grey' based on rules
+// Returns { status, reasons } where status is 'green', 'amber', 'red', or 'grey'
+// and reasons is an array of strings explaining any downgrades
 // statusRules: the full status rules configuration object
 // trend: optional trend for trend-based adjustments ('improving', 'stable', 'declining')
 // options: { stagnationMonths } - additional context for stagnation rule
@@ -197,20 +198,24 @@ export function calculateAutoRagStatus(squad, practices, statusRules, trend = 's
   // Handle legacy thresholds format (backward compatibility)
   const thresholds = statusRules?.thresholds?.team || statusRules || { green: 75, amber: 40 };
 
+  // Track reasons for status adjustments
+  const reasons = [];
+
   // Get adopted count (weighted if practice importance is enabled)
-  const { meetsTarget, total } = statusRules?.practiceImportance?.enabled
+  const adoptionResult = statusRules?.practiceImportance?.enabled
     ? getWeightedAdoptedCount(squad.practices, practices, statusRules)
     : getAdoptedCount(squad.practices, practices);
+  const { meetsTarget, total } = adoptionResult;
 
   // Check grey status triggers first
   if (statusRules?.grey?.enabled) {
     const greyTrigger = statusRules.grey.trigger;
     if (greyTrigger === 'noPractices' && total === 0) {
-      return 'grey';
+      return { status: 'grey', reasons: ['no practices'] };
     }
   }
 
-  if (total === 0) return 'amber'; // No practices to measure
+  if (total === 0) return { status: 'amber', reasons: ['no practices to measure'] };
 
   const greenThreshold = (thresholds?.green ?? 75) / 100;
   const amberThreshold = (thresholds?.amber ?? 40) / 100;
@@ -223,6 +228,22 @@ export function calculateAutoRagStatus(squad, practices, statusRules, trend = 's
   else if (percentage >= amberThreshold) status = 'amber';
   else status = 'red';
 
+  const baseStatus = status;
+
+  // Check for missing key/important practices
+  if (statusRules?.practiceImportance?.enabled) {
+    const importantPractices = Object.entries(practices).filter(([_, def]) => def.important);
+    const missingImportant = importantPractices.filter(([id, def]) => {
+      const value = squad.practices?.[id];
+      const target = def.target || (def.type === 'boolean' ? true : 3);
+      if (def.type === 'boolean') return value !== target && value !== 'na';
+      return value < target && value !== -1;
+    });
+    if (missingImportant.length > 0) {
+      reasons.push('missing key practice');
+    }
+  }
+
   // Apply trend rule if enabled
   if (statusRules?.trend?.enabled && trend) {
     const trendMode = statusRules.trend.mode || 'penalty';
@@ -230,10 +251,17 @@ export function calculateAutoRagStatus(squad, practices, statusRules, trend = 's
     if (trend === 'declining') {
       if (trendMode === 'strict') {
         // Strict: declining teams capped at amber
-        if (status === 'green') status = 'amber';
+        if (status === 'green') {
+          status = 'amber';
+          reasons.push('declining trend');
+        }
       } else {
         // Penalty: downgrade by one level
-        status = downgradeStatus(status);
+        const newStatus = downgradeStatus(status);
+        if (newStatus !== status) {
+          status = newStatus;
+          reasons.push('declining trend');
+        }
       }
     } else if (trend === 'improving' && trendMode === 'strict') {
       // In strict mode, improving can upgrade
@@ -248,24 +276,43 @@ export function calculateAutoRagStatus(squad, practices, statusRules, trend = 's
 
     if (options.stagnationMonths >= monthsThreshold) {
       if (penalty === 'red') {
-        status = 'red';
+        if (status !== 'red') {
+          status = 'red';
+          reasons.push('stagnating progress');
+        }
       } else {
-        status = downgradeStatus(status);
+        const newStatus = downgradeStatus(status);
+        if (newStatus !== status) {
+          status = newStatus;
+          reasons.push('stagnating progress');
+        }
       }
     }
   }
 
-  return status;
+  return { status, reasons };
 }
 
 // Get effective status for a squad (considering auto-status and trend)
+// Returns { status, reasons } or just status string for backward compatibility
 // statusRules: the full status rules configuration (or legacy thresholds for backward compatibility)
 export function getEffectiveSquadStatus(squad, practices, statusRules, trend = 'stable', options = {}) {
   if (squad.tracked === false) return 'none';
   if (squad.autoStatus !== false) {
-    return calculateAutoRagStatus(squad, practices, statusRules, trend, options);
+    const result = calculateAutoRagStatus(squad, practices, statusRules, trend, options);
+    // Return just status for backward compatibility (reasons available via getEffectiveSquadStatusWithReasons)
+    return result.status;
   }
   return squad.status || 'red';
+}
+
+// Same as getEffectiveSquadStatus but also returns reasons array
+export function getEffectiveSquadStatusWithReasons(squad, practices, statusRules, trend = 'stable', options = {}) {
+  if (squad.tracked === false) return { status: 'none', reasons: [] };
+  if (squad.autoStatus !== false) {
+    return calculateAutoRagStatus(squad, practices, statusRules, trend, options);
+  }
+  return { status: squad.status || 'red', reasons: [] };
 }
 
 // Calculate weighted BU RAG status from tracked squads
@@ -274,12 +321,16 @@ export function getEffectiveSquadStatus(squad, practices, statusRules, trend = '
 // buTrend: optional BU-level trend for rule-based adjustments
 // previousMonthData and currentBU: used to compute team-level trends when trend rules are enabled
 // maxMaturityLevel: the highest level in the maturity scale (default 4)
-export function getWeightedBuStatus(squads, practices, statusRules, buTrend = 'stable', previousMonthData = null, currentBU = null, maxMaturityLevel = 4) {
+// options: { buCreatedMonth, currentMonth, months } - for dataMaturity check
+export function getWeightedBuStatus(squads, practices, statusRules, buTrend = 'stable', previousMonthData = null, currentBU = null, maxMaturityLevel = 4, options = {}) {
   // Handle legacy format (separate teamThresholds and buThresholds)
   // New format: statusRules contains everything
   const teamThresholds = statusRules?.thresholds?.team || statusRules;
   const buThresholds = statusRules?.thresholds?.bu || { green: 75, amber: 40 };
   const useTeamWeights = statusRules?.teamWeights?.enabled !== false; // Default true for backward compatibility
+
+  // Track reasons for BU status adjustments
+  const reasons = [];
 
   // Filter to only tracked squads
   const trackedSquads = squads.filter(s => s.tracked !== false);
@@ -290,21 +341,36 @@ export function getWeightedBuStatus(squads, practices, statusRules, buTrend = 's
   if (statusRules?.grey?.enabled) {
     const greyTrigger = statusRules.grey.trigger;
     const scopeThreshold = statusRules.grey.scopeThreshold ?? 50;
+    const minPeriods = statusRules.grey.minPeriods ?? 2;
 
     if (greyTrigger === 'allUntracked' && trackedSquads.length === 0) {
-      return { status: 'grey', details: { green: 0, amber: 0, red: 0, grey: 0, total: 0, greenPercent: 0 } };
+      return { status: 'grey', reasons: ['all teams untracked'], details: { green: 0, amber: 0, red: 0, grey: 0, total: 0, greenPercent: 0 } };
     }
 
     if (greyTrigger === 'scopeThreshold' && totalSquads > 0) {
       const untrackedPercent = (untrackedCount / totalSquads) * 100;
       if (untrackedPercent >= scopeThreshold) {
-        return { status: 'grey', details: { green: 0, amber: 0, red: 0, grey: 0, total: trackedSquads.length, greenPercent: 0, untrackedPercent: Math.round(untrackedPercent) } };
+        return { status: 'grey', reasons: ['too many teams untracked'], details: { green: 0, amber: 0, red: 0, grey: 0, total: trackedSquads.length, greenPercent: 0, untrackedPercent: Math.round(untrackedPercent) } };
+      }
+    }
+
+    // Data maturity check - BU needs minimum periods of data before showing RAG
+    if (greyTrigger === 'dataMaturity' && options.buCreatedMonth && options.months) {
+      const sortedMonths = [...options.months].sort();
+      const createdIndex = sortedMonths.indexOf(options.buCreatedMonth);
+      const currentIndex = sortedMonths.indexOf(options.currentMonth || sortedMonths[sortedMonths.length - 1]);
+
+      if (createdIndex >= 0 && currentIndex >= 0) {
+        const periodsActive = currentIndex - createdIndex + 1;
+        if (periodsActive < minPeriods) {
+          return { status: 'grey', reasons: ['insufficient data history'], details: { green: 0, amber: 0, red: 0, grey: 0, total: trackedSquads.length, greenPercent: 0, periodsActive, minPeriods } };
+        }
       }
     }
   }
 
   if (trackedSquads.length === 0) {
-    return { status: 'none', details: { green: 0, amber: 0, red: 0, grey: 0, total: 0, greenPercent: 0 } };
+    return { status: 'none', reasons: [], details: { green: 0, amber: 0, red: 0, grey: 0, total: 0, greenPercent: 0 } };
   }
 
   let statusCounts = { green: 0, amber: 0, red: 0, grey: 0 };
@@ -335,7 +401,7 @@ export function getWeightedBuStatus(squads, practices, statusRules, buTrend = 's
   });
 
   if (totalWeight === 0) {
-    return { status: 'none', details: { ...statusCounts, total: trackedSquads.length, greenPercent: 0 } };
+    return { status: 'none', reasons: [], details: { ...statusCounts, total: trackedSquads.length, greenPercent: 0 } };
   }
 
   // Calculate percentage of green teams (weighted if enabled)
@@ -354,10 +420,17 @@ export function getWeightedBuStatus(squads, practices, statusRules, buTrend = 's
     if (buTrend === 'declining') {
       if (trendMode === 'strict') {
         // Strict: declining BUs capped at amber
-        if (status === 'green') status = 'amber';
+        if (status === 'green') {
+          status = 'amber';
+          reasons.push('declining trend');
+        }
       } else {
         // Penalty: downgrade by one level
-        status = downgradeStatus(status);
+        const newStatus = downgradeStatus(status);
+        if (newStatus !== status) {
+          status = newStatus;
+          reasons.push('declining trend');
+        }
       }
     } else if (buTrend === 'improving' && trendMode === 'strict') {
       // In strict mode, improving can upgrade
@@ -367,6 +440,7 @@ export function getWeightedBuStatus(squads, practices, statusRules, buTrend = 's
 
   return {
     status,
+    reasons,
     details: { ...statusCounts, total: trackedSquads.length, greenPercent: Math.round(greenPercent) }
   };
 }

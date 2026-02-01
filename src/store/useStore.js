@@ -80,12 +80,25 @@ const DEFAULT_STATUS_RULES = {
     description: 'Penalize BUs with declining overall trend by downgrading their status',
   },
 
-  // Grey status triggers - conditions that result in grey (insufficient data) BU status
+  // Grey status triggers - conditions that result in grey (untracked) BU status
   grey: {
     enabled: false,
-    trigger: 'scopeThreshold', // 'scopeThreshold' | 'allUntracked'
-    scopeThreshold: 50, // % of teams out of scope to trigger grey
-    description: 'Show grey BU status when data is insufficient or most teams are out of scope',
+    trigger: 'scopeThreshold', // 'scopeThreshold' | 'dataMaturity' | 'allUntracked'
+    scopeThreshold: 50, // % of teams untracked to trigger grey
+    minPeriods: 2, // Minimum periods of data before showing RAG status (for dataMaturity trigger)
+    description: 'Show grey BU status for untracked BUs or those without enough data',
+  },
+
+  // Show reason badges on BU cards (explains downgrades)
+  showReasonBadges: {
+    enabled: false,
+    description: 'Display badges showing why a BU was downgraded',
+  },
+
+  // Show reason badges on Team cards (explains downgrades)
+  showTeamReasonBadges: {
+    enabled: false,
+    description: 'Display badges showing why a team was downgraded',
   },
 };
 
@@ -774,11 +787,17 @@ export function useStore() {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
       if (!newData.statusRules) {
-        newData.statusRules = DEFAULT_STATUS_RULES;
+        newData.statusRules = JSON.parse(JSON.stringify(DEFAULT_STATUS_RULES));
       }
-      if (newData.statusRules[ruleName] !== undefined && ruleName !== 'thresholds') {
-        newData.statusRules[ruleName].enabled = enabled;
+      // Skip thresholds - they don't have an enabled flag
+      if (ruleName === 'thresholds') return prev;
+
+      // Initialize rule from defaults if it doesn't exist in storage
+      if (!newData.statusRules[ruleName]) {
+        newData.statusRules[ruleName] = JSON.parse(JSON.stringify(DEFAULT_STATUS_RULES[ruleName] || { enabled: false }));
       }
+
+      newData.statusRules[ruleName].enabled = enabled;
       return newData;
     });
   }, []);
@@ -788,11 +807,17 @@ export function useStore() {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
       if (!newData.statusRules) {
-        newData.statusRules = DEFAULT_STATUS_RULES;
+        newData.statusRules = JSON.parse(JSON.stringify(DEFAULT_STATUS_RULES));
       }
-      if (newData.statusRules[ruleName] !== undefined && ruleName !== 'thresholds') {
-        newData.statusRules[ruleName][configKey] = value;
+      // Skip thresholds - they have their own update function
+      if (ruleName === 'thresholds') return prev;
+
+      // Initialize rule from defaults if it doesn't exist in storage
+      if (!newData.statusRules[ruleName]) {
+        newData.statusRules[ruleName] = JSON.parse(JSON.stringify(DEFAULT_STATUS_RULES[ruleName] || {}));
       }
+
+      newData.statusRules[ruleName][configKey] = value;
       return newData;
     });
   }, []);
