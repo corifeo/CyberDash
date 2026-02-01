@@ -1519,7 +1519,8 @@ export default function App() {
                   buTrend,
                   previousMonthData,
                   bu,
-                  maxLevel
+                  maxLevel,
+                  { months: store.months, currentMonth: store.currentMonth }
                 );
                 const statusInfo = getStatusInfo(store.ragColors, dominantStatus);
 

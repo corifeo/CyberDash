@@ -296,60 +296,74 @@ export default function StatusRulesModal({
                 onToggle={(enabled) => onToggleRule('grey', enabled)}
                 darkMode={darkMode}
               >
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <span className={`text-sm ${st.textMuted}`}>Trigger:</span>
-                    <select
-                      value={statusRules?.grey?.trigger || 'scopeThreshold'}
-                      onChange={(e) => onUpdateRuleConfig('grey', 'trigger', e.target.value)}
-                      className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
-                    >
-                      <option value="scopeThreshold">% of untracked teams</option>
-                      <option value="dataMaturity">Data maturity (minimum periods)</option>
-                      <option value="allUntracked">All teams are untracked</option>
-                    </select>
+                <div className="space-y-4">
+                  <p className={`text-xs ${st.textHint}`}>
+                    Enable one or both conditions below. If both are enabled, a BU will be grey if <strong>either</strong> condition is met.
+                  </p>
+
+                  {/* Untracked Teams Threshold */}
+                  <div className={`p-3 rounded-lg border ${statusRules?.grey?.useUntrackedThreshold ? (darkMode ? 'border-cyber-500/50 bg-slate-700/30' : 'border-blue-300 bg-blue-50/50') : (darkMode ? 'border-slate-600' : 'border-slate-200')}`}>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={statusRules?.grey?.useUntrackedThreshold ?? true}
+                        onChange={(e) => onUpdateRuleConfig('grey', 'useUntrackedThreshold', e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-400 text-cyber-500 focus:ring-cyber-500"
+                      />
+                      <span className={`text-sm font-medium ${st.textMuted}`}>% of untracked teams</span>
+                    </label>
+                    {(statusRules?.grey?.useUntrackedThreshold ?? true) && (
+                      <div className="flex items-center gap-3 mt-2 ml-6">
+                        <span className={`text-sm ${st.textMuted}`}>Threshold:</span>
+                        <input
+                          type="number"
+                          min="10"
+                          max="100"
+                          step="5"
+                          value={statusRules?.grey?.scopeThreshold ?? 50}
+                          onChange={(e) => onUpdateRuleConfig('grey', 'scopeThreshold', parseInt(e.target.value))}
+                          className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
+                        />
+                        <span className={`text-xs ${st.textHint}`}>% or more → Grey</span>
+                      </div>
+                    )}
                   </div>
 
-                  {statusRules?.grey?.trigger === 'scopeThreshold' && (
-                    <div className="flex items-center gap-3">
-                      <span className={`text-sm ${st.textMuted}`}>Threshold:</span>
+                  {/* Data Maturity */}
+                  <div className={`p-3 rounded-lg border ${statusRules?.grey?.useDataMaturity ? (darkMode ? 'border-cyber-500/50 bg-slate-700/30' : 'border-blue-300 bg-blue-50/50') : (darkMode ? 'border-slate-600' : 'border-slate-200')}`}>
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
-                        type="number"
-                        min="10"
-                        max="100"
-                        step="5"
-                        value={statusRules?.grey?.scopeThreshold ?? 50}
-                        onChange={(e) => onUpdateRuleConfig('grey', 'scopeThreshold', parseInt(e.target.value))}
-                        className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
+                        type="checkbox"
+                        checked={statusRules?.grey?.useDataMaturity ?? false}
+                        onChange={(e) => onUpdateRuleConfig('grey', 'useDataMaturity', e.target.checked)}
+                        className="w-4 h-4 rounded border-slate-400 text-cyber-500 focus:ring-cyber-500"
                       />
-                      <span className={`text-xs ${st.textHint}`}>% or more teams untracked → Grey</span>
-                    </div>
-                  )}
-
-                  {statusRules?.grey?.trigger === 'dataMaturity' && (
-                    <div className="flex items-center gap-3">
-                      <span className={`text-sm ${st.textMuted}`}>Min periods:</span>
-                      <input
-                        type="number"
-                        min="1"
-                        max="12"
-                        step="1"
-                        value={statusRules?.grey?.minPeriods ?? 2}
-                        onChange={(e) => onUpdateRuleConfig('grey', 'minPeriods', parseInt(e.target.value))}
-                        className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
-                      />
-                      <span className={`text-xs ${st.textHint}`}>periods before showing RAG status</span>
-                    </div>
-                  )}
+                      <span className={`text-sm font-medium ${st.textMuted}`}>Data maturity (minimum periods)</span>
+                    </label>
+                    {statusRules?.grey?.useDataMaturity && (
+                      <div className="flex items-center gap-3 mt-2 ml-6">
+                        <span className={`text-sm ${st.textMuted}`}>Min periods:</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max="12"
+                          step="1"
+                          value={statusRules?.grey?.minPeriods ?? 3}
+                          onChange={(e) => onUpdateRuleConfig('grey', 'minPeriods', parseInt(e.target.value))}
+                          className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
+                        />
+                        <span className={`text-xs ${st.textHint}`}>periods of data required</span>
+                      </div>
+                    )}
+                    <p className={`text-xs ${st.textHint} mt-2 ml-6`}>
+                      If your data has fewer periods than this, all BUs will show grey.
+                    </p>
+                  </div>
 
                   <div className="flex items-center gap-2 mt-2">
                     <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.grey?.hex || '#6b7280' }} />
                     <span className={`text-sm ${st.textMuted}`}>Grey = "{ragColors?.grey?.label || 'Untracked'}"</span>
                   </div>
-
-                  <p className={`text-xs ${st.textHint}`}>
-                    Use this to give BUs time to onboard before showing them with RAG status.
-                  </p>
                 </div>
               </RuleCard>
 
