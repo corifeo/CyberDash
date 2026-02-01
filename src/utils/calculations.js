@@ -1,6 +1,7 @@
 /**
  * Calculation utilities for CyberDash
  * Pure functions for status, trend, and adoption calculations
+ * Supports toggleable rules for customizable status calculation
  */
 
 import { getAdoptedCount } from '../components/Dashboard';
@@ -11,6 +12,20 @@ export const TREND_THRESHOLDS = {
   team: 0.05,  // 5% change in practice score
   bu: 0.03,    // 3% change in average score across teams
 };
+
+// Helper to downgrade a status by one level
+function downgradeStatus(status) {
+  if (status === 'green') return 'amber';
+  if (status === 'amber') return 'red';
+  return 'red';
+}
+
+// Helper to upgrade a status by one level
+function upgradeStatus(status) {
+  if (status === 'red') return 'amber';
+  if (status === 'amber') return 'green';
+  return 'green';
+}
 
 // Get the maximum maturity level from a scale (excludes N/A which is -1)
 export function getMaxMaturityLevel(maturityScale) {
@@ -135,88 +150,178 @@ export function getPracticeAdoption(squads, definitions) {
   return result;
 }
 
+// Get weighted adopted count considering practice importance
+// Returns { meetsTarget, total } with importance-weighted values
+export function getWeightedAdoptedCount(squadPractices, practices, statusRules) {
+  const practiceImportanceEnabled = statusRules?.practiceImportance?.enabled;
+  const importantWeight = statusRules?.practiceImportance?.importantWeight ?? 1.5;
+
+  let weightedMet = 0;
+  let weightedTotal = 0;
+
+  Object.entries(practices).forEach(([practiceId, def]) => {
+    const value = squadPractices?.[practiceId];
+    const target = def.target || (def.type === 'boolean' ? true : 3);
+
+    // Skip N/A values
+    if (def.type === 'boolean' && value === 'na') return;
+    if (def.type !== 'boolean' && value === -1) return;
+
+    // Determine weight based on importance
+    const weight = (practiceImportanceEnabled && def.important) ? importantWeight : 1;
+
+    // Check if practice meets target
+    let meetsTarget = false;
+    if (def.type === 'boolean') {
+      meetsTarget = value === target;
+    } else {
+      meetsTarget = value >= target;
+    }
+
+    weightedTotal += weight;
+    if (meetsTarget) {
+      weightedMet += weight;
+    }
+  });
+
+  return { meetsTarget: weightedMet, total: weightedTotal };
+}
+
 // Calculate automatic RAG status for a team based on practice adoption
-// Returns 'green', 'amber', or 'red' based on percentage of practices at target
-// thresholds: { green: 75, amber: 40, rule: 'percentage' } - percentage values and rule type
-// trend: optional trend for rule-based adjustments ('improving', 'stable', 'declining')
-export function calculateAutoRagStatus(squad, practices, thresholds, trend = 'stable') {
-  const { meetsTarget, total } = getAdoptedCount(squad.practices, practices);
+// Supports toggleable rules from statusRules configuration
+// Returns 'green', 'amber', 'red', or 'grey' based on rules
+// statusRules: the full status rules configuration object
+// trend: optional trend for trend-based adjustments ('improving', 'stable', 'declining')
+// options: { stagnationMonths } - additional context for stagnation rule
+export function calculateAutoRagStatus(squad, practices, statusRules, trend = 'stable', options = {}) {
+  // Handle legacy thresholds format (backward compatibility)
+  const thresholds = statusRules?.thresholds?.team || statusRules || { green: 75, amber: 40 };
+
+  // Get adopted count (weighted if practice importance is enabled)
+  const { meetsTarget, total } = statusRules?.practiceImportance?.enabled
+    ? getWeightedAdoptedCount(squad.practices, practices, statusRules)
+    : getAdoptedCount(squad.practices, practices);
+
+  // Check grey status triggers first
+  if (statusRules?.grey?.enabled) {
+    const greyTrigger = statusRules.grey.trigger;
+    if (greyTrigger === 'noPractices' && total === 0) {
+      return 'grey';
+    }
+  }
+
   if (total === 0) return 'amber'; // No practices to measure
 
   const greenThreshold = (thresholds?.green ?? 75) / 100;
   const amberThreshold = (thresholds?.amber ?? 40) / 100;
-  const rule = thresholds?.rule || 'percentage';
 
   const percentage = meetsTarget / total;
 
   // Calculate base status from percentage
-  let baseStatus;
-  if (percentage >= greenThreshold) baseStatus = 'green';
-  else if (percentage >= amberThreshold) baseStatus = 'amber';
-  else baseStatus = 'red';
+  let status;
+  if (percentage >= greenThreshold) status = 'green';
+  else if (percentage >= amberThreshold) status = 'amber';
+  else status = 'red';
 
-  // Apply rule-based adjustments
-  if (rule === 'percentage') {
-    // Pure percentage-based: no trend adjustment
-    return baseStatus;
-  } else if (rule === 'trend') {
-    // Percentage + Trend Penalty: declining trend downgrades by one level
+  // Apply trend rule if enabled
+  if (statusRules?.trend?.enabled && trend) {
+    const trendMode = statusRules.trend.mode || 'penalty';
+
     if (trend === 'declining') {
-      if (baseStatus === 'green') return 'amber';
-      if (baseStatus === 'amber') return 'red';
+      if (trendMode === 'strict') {
+        // Strict: declining teams capped at amber
+        if (status === 'green') status = 'amber';
+      } else {
+        // Penalty: downgrade by one level
+        status = downgradeStatus(status);
+      }
+    } else if (trend === 'improving' && trendMode === 'strict') {
+      // In strict mode, improving can upgrade
+      status = upgradeStatus(status);
     }
-    return baseStatus;
-  } else if (rule === 'strictTrend') {
-    // Trend Priority: declining = amber max, improving can upgrade
-    if (trend === 'declining') {
-      // Declining trend: can't be better than amber
-      return baseStatus === 'red' ? 'red' : 'amber';
-    } else if (trend === 'improving') {
-      // Improving trend: can upgrade by one level
-      if (baseStatus === 'red') return 'amber';
-      if (baseStatus === 'amber') return 'green';
-    }
-    return baseStatus;
   }
 
-  return baseStatus;
+  // Apply stagnation penalty if enabled
+  if (statusRules?.stagnation?.enabled && options.stagnationMonths !== undefined) {
+    const monthsThreshold = statusRules.stagnation.monthsThreshold || 3;
+    const penalty = statusRules.stagnation.penalty || 'downgrade';
+
+    if (options.stagnationMonths >= monthsThreshold) {
+      if (penalty === 'red') {
+        status = 'red';
+      } else {
+        status = downgradeStatus(status);
+      }
+    }
+  }
+
+  return status;
 }
 
 // Get effective status for a squad (considering auto-status and trend)
-export function getEffectiveSquadStatus(squad, practices, thresholds, trend = 'stable') {
+// statusRules: the full status rules configuration (or legacy thresholds for backward compatibility)
+export function getEffectiveSquadStatus(squad, practices, statusRules, trend = 'stable', options = {}) {
   if (squad.tracked === false) return 'none';
   if (squad.autoStatus !== false) {
-    return calculateAutoRagStatus(squad, practices, thresholds, trend);
+    return calculateAutoRagStatus(squad, practices, statusRules, trend, options);
   }
   return squad.status || 'red';
 }
 
 // Calculate weighted BU RAG status from tracked squads
 // Uses percentage-based thresholds (e.g., 75% of teams are green)
-// practices and teamThresholds are needed to compute effective status for squads with auto-status
+// statusRules: the full status rules configuration (supports both new and legacy format)
 // buTrend: optional BU-level trend for rule-based adjustments
-// previousMonthData and currentBU: used to compute team-level trends when team thresholds have trend rules
+// previousMonthData and currentBU: used to compute team-level trends when trend rules are enabled
 // maxMaturityLevel: the highest level in the maturity scale (default 4)
-export function getWeightedBuStatus(squads, practices, teamThresholds, buThresholds = { green: 75, amber: 40 }, buTrend = 'stable', previousMonthData = null, currentBU = null, maxMaturityLevel = 4) {
+export function getWeightedBuStatus(squads, practices, statusRules, buTrend = 'stable', previousMonthData = null, currentBU = null, maxMaturityLevel = 4) {
+  // Handle legacy format (separate teamThresholds and buThresholds)
+  // New format: statusRules contains everything
+  const teamThresholds = statusRules?.thresholds?.team || statusRules;
+  const buThresholds = statusRules?.thresholds?.bu || { green: 75, amber: 40 };
+  const useTeamWeights = statusRules?.teamWeights?.enabled !== false; // Default true for backward compatibility
+
   // Filter to only tracked squads
   const trackedSquads = squads.filter(s => s.tracked !== false);
+  const totalSquads = squads.length;
+  const untrackedCount = totalSquads - trackedSquads.length;
 
-  if (trackedSquads.length === 0) {
-    return { status: 'none', details: { green: 0, amber: 0, red: 0, total: 0, greenPercent: 0 } };
+  // Check grey status triggers
+  if (statusRules?.grey?.enabled) {
+    const greyTrigger = statusRules.grey.trigger;
+    const scopeThreshold = statusRules.grey.scopeThreshold ?? 50;
+
+    if (greyTrigger === 'allUntracked' && trackedSquads.length === 0) {
+      return { status: 'grey', details: { green: 0, amber: 0, red: 0, grey: 0, total: 0, greenPercent: 0 } };
+    }
+
+    if (greyTrigger === 'scopeThreshold' && totalSquads > 0) {
+      const untrackedPercent = (untrackedCount / totalSquads) * 100;
+      if (untrackedPercent >= scopeThreshold) {
+        return { status: 'grey', details: { green: 0, amber: 0, red: 0, grey: 0, total: trackedSquads.length, greenPercent: 0, untrackedPercent: Math.round(untrackedPercent) } };
+      }
+    }
   }
 
-  let statusCounts = { green: 0, amber: 0, red: 0 };
+  if (trackedSquads.length === 0) {
+    return { status: 'none', details: { green: 0, amber: 0, red: 0, grey: 0, total: 0, greenPercent: 0 } };
+  }
+
+  let statusCounts = { green: 0, amber: 0, red: 0, grey: 0 };
   let totalWeight = 0;
   let greenWeight = 0;
 
   trackedSquads.forEach(squad => {
-    const weight = squad.weight || 1;
+    // Only apply weight if team weights rule is enabled
+    const weight = useTeamWeights ? (squad.weight || 1) : 1;
+
     // Calculate team trend if we have previous data
     const teamTrend = previousMonthData && currentBU
       ? calculateAutoTrend(squad, previousMonthData, currentBU.id, practices, maxMaturityLevel)
       : 'stable';
+
     // Get effective status (considering auto-status and trend for team rule)
-    const effectiveStatus = getEffectiveSquadStatus(squad, practices, teamThresholds, teamTrend);
+    const effectiveStatus = getEffectiveSquadStatus(squad, practices, statusRules, teamTrend);
 
     if (effectiveStatus && effectiveStatus !== 'none') {
       totalWeight += weight;
@@ -233,31 +338,30 @@ export function getWeightedBuStatus(squads, practices, teamThresholds, buThresho
     return { status: 'none', details: { ...statusCounts, total: trackedSquads.length, greenPercent: 0 } };
   }
 
-  // Calculate percentage of green teams (weighted)
+  // Calculate percentage of green teams (weighted if enabled)
   const greenPercent = (greenWeight / totalWeight) * 100;
-  const buRule = buThresholds?.rule || 'percentage';
 
   // Calculate base BU status from percentage
-  let baseStatus;
-  if (greenPercent >= (buThresholds?.green ?? 75)) baseStatus = 'green';
-  else if (greenPercent >= (buThresholds?.amber ?? 40)) baseStatus = 'amber';
-  else baseStatus = 'red';
+  let status;
+  if (greenPercent >= (buThresholds?.green ?? 75)) status = 'green';
+  else if (greenPercent >= (buThresholds?.amber ?? 40)) status = 'amber';
+  else status = 'red';
 
-  // Apply BU-level rule-based adjustments
-  let status = baseStatus;
-  if (buRule === 'trend') {
-    // Percentage + Trend Penalty: declining trend downgrades by one level
+  // Apply BU-level trend rule if enabled
+  if (statusRules?.trend?.enabled && buTrend) {
+    const trendMode = statusRules.trend.mode || 'penalty';
+
     if (buTrend === 'declining') {
-      if (baseStatus === 'green') status = 'amber';
-      else if (baseStatus === 'amber') status = 'red';
-    }
-  } else if (buRule === 'strictTrend') {
-    // Trend Priority: declining = amber max, improving can upgrade
-    if (buTrend === 'declining') {
-      status = baseStatus === 'red' ? 'red' : 'amber';
-    } else if (buTrend === 'improving') {
-      if (baseStatus === 'red') status = 'amber';
-      else if (baseStatus === 'amber') status = 'green';
+      if (trendMode === 'strict') {
+        // Strict: declining BUs capped at amber
+        if (status === 'green') status = 'amber';
+      } else {
+        // Penalty: downgrade by one level
+        status = downgradeStatus(status);
+      }
+    } else if (buTrend === 'improving' && trendMode === 'strict') {
+      // In strict mode, improving can upgrade
+      status = upgradeStatus(status);
     }
   }
 

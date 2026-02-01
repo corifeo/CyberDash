@@ -4,11 +4,12 @@ import {
   Shield, Star, Check, X, ChevronDown
 } from 'lucide-react';
 
-// Default hex colors for status
+// Default hex colors for status (includes grey for insufficient data)
 const DEFAULT_HEX_COLORS = {
   green: '#059669',
   amber: '#d97706',
   red: '#dc2626',
+  grey: '#6b7280',
   none: '#64748b',
 };
 
@@ -22,7 +23,7 @@ function adjustColor(hex, percent) {
   return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
 }
 
-// Get status info from RAG colors
+// Get status info from RAG colors (includes grey for insufficient data)
 export function getStatusInfo(ragColors, status) {
   const colors = ragColors?.[status];
   const hex = colors?.hex || DEFAULT_HEX_COLORS[status] || DEFAULT_HEX_COLORS.none;
@@ -33,6 +34,7 @@ export function getStatusInfo(ragColors, status) {
       status === 'green' ? 'Strong' :
       status === 'amber' ? 'Developing' :
       status === 'red' ? 'Early Stage' :
+      status === 'grey' ? 'Insufficient Data' :
       'Not Tracked'
     ),
   };
@@ -265,6 +267,10 @@ export function Legend({ darkMode = true, ragColors, orderedPractices = [], matu
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded" style={{ backgroundColor: ragColors?.red?.hex || '#dc2626' }} />
                 <span className={`text-xs ${theme.text}`}>{ragColors?.red?.label || 'Early Stage'}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded" style={{ backgroundColor: ragColors?.grey?.hex || '#6b7280' }} />
+                <span className={`text-xs ${theme.text}`}>{ragColors?.grey?.label || 'Insufficient Data'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded" style={{ backgroundColor: ragColors?.none?.hex || '#64748b' }} />

@@ -14,11 +14,12 @@ const DEFAULT_MATURITY_SCALE = [
   { level: 4, label: "Managed", short: "4", description: "Process measured and continuously improved" },
 ];
 
-// Default RAG colors
+// Default RAG colors (includes grey for out-of-scope/insufficient data)
 const DEFAULT_RAG_COLORS = {
   green: { hex: "#059669", label: "Strong" },
   amber: { hex: "#d97706", label: "Developing" },
   red: { hex: "#dc2626", label: "Early Stage" },
+  grey: { hex: "#6b7280", label: "Insufficient Data" },
   none: { hex: "#64748b", label: "Not Tracked" },
 };
 
@@ -30,61 +31,87 @@ const DEFAULT_TEAM_TYPES = [
   { id: "platform", label: "Platform Team" },
 ];
 
-// Status rule types
-// - 'percentage': based on % of practices meeting target (teams) or % of green teams (BUs)
-// - 'trend': considers trend in addition to percentage (declining trend downgrades status)
-// - 'strict-trend': trend-first (any declining trend = amber, improving can upgrade)
-const STATUS_RULES = {
-  percentage: {
-    id: 'percentage',
-    name: 'Percentage Only',
-    description: 'Status based only on % of practices at target (teams) or % of green teams (BUs)'
+// Toggleable status rules configuration
+// Each rule can be enabled/disabled independently and has its own configuration
+const DEFAULT_STATUS_RULES = {
+  // Core thresholds (always active, defines green/amber/red boundaries)
+  thresholds: {
+    team: { green: 75, amber: 40 },
+    bu: { green: 75, amber: 40 },
   },
+
+  // Trend modifier - penalizes declining trends
   trend: {
-    id: 'trend',
-    name: 'Percentage + Trend Penalty',
-    description: 'Percentage-based with trend penalty: declining trend downgrades by one level'
+    enabled: false,
+    mode: 'penalty', // 'penalty' = downgrade by 1, 'strict' = declining caps at amber
+    description: 'Penalize declining trends by downgrading status',
   },
-  strictTrend: {
-    id: 'strictTrend',
-    name: 'Trend Priority',
-    description: 'Trend-first: declining = amber max, improving can upgrade by one level'
+
+  // Team weights - consider team weight in BU calculations
+  teamWeights: {
+    enabled: true, // On by default as it was before
+    description: 'Weight teams differently in BU status calculation',
+  },
+
+  // Practice importance - important practices count more
+  practiceImportance: {
+    enabled: false,
+    importantWeight: 1.5, // Important practices count 1.5x
+    description: 'Important practices (starred) have more impact on status',
+  },
+
+  // Stagnation penalty - penalize teams stuck below target
+  stagnation: {
+    enabled: false,
+    monthsThreshold: 3, // Number of months without progress
+    penalty: 'downgrade', // 'downgrade' = drop 1 level, 'red' = force red
+    description: 'Penalize teams under target for multiple months without improvement',
+  },
+
+  // Grey status triggers - conditions that result in grey (insufficient data) status
+  grey: {
+    enabled: false,
+    trigger: 'scopeThreshold', // 'scopeThreshold' | 'allUntracked' | 'noPractices'
+    scopeThreshold: 50, // % of teams out of scope to trigger grey
+    description: 'Show grey status when data is insufficient or most teams are out of scope',
   },
 };
 
-// Default thresholds (percentage-based for both BU and Team)
-// Both use the same mechanic: percentage of "good" score
+// Default thresholds (kept for backward compatibility, now derived from statusRules)
+// The statusRules structure is the source of truth
 const DEFAULT_THRESHOLDS = {
-  // For teams: % of practices meeting target, with optional rule type
-  team: { green: 75, amber: 40, rule: 'percentage' },
-  // For BUs: % of teams that are green (weighted), with optional rule type
-  bu: { green: 75, amber: 40, rule: 'percentage' },
+  team: { green: 75, amber: 40 },
+  bu: { green: 75, amber: 40 },
 };
 
-// Available color themes
+// Available color themes (includes grey for insufficient data status)
 const COLOR_THEMES = {
   default: {
     green: { hex: '#059669' },
     amber: { hex: '#d97706' },
     red: { hex: '#dc2626' },
+    grey: { hex: '#6b7280' },
     none: { hex: '#64748b' },
   },
   muted: {
     green: { hex: '#0f766e' },
     amber: { hex: '#a16207' },
     red: { hex: '#be123c' },
+    grey: { hex: '#4b5563' },
     none: { hex: '#475569' },
   },
   vibrant: {
     green: { hex: '#22c55e' },
     amber: { hex: '#f97316' },
     red: { hex: '#ef4444' },
+    grey: { hex: '#9ca3af' },
     none: { hex: '#94a3b8' },
   },
   corporate: {
     green: { hex: '#0891b2' },
     amber: { hex: '#64748b' },
     red: { hex: '#4f46e5' },
+    grey: { hex: '#71717a' },
     none: { hex: '#334155' },
   },
 };
@@ -112,6 +139,7 @@ const DEFAULT_DATA = {
   ragColors: DEFAULT_RAG_COLORS,
   teamTypes: DEFAULT_TEAM_TYPES,
   thresholds: DEFAULT_THRESHOLDS,
+  statusRules: DEFAULT_STATUS_RULES,
   darkMode: true,
   colorTheme: 'default',
   months: {
@@ -429,6 +457,7 @@ export function useStore() {
       practiceOrder: data.practiceOrder,
       ragColors: data.ragColors,
       thresholds: data.thresholds,
+      statusRules: data.statusRules,
       colorTheme: data.colorTheme,
     };
     const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
@@ -454,6 +483,7 @@ export function useStore() {
           practiceOrder: imported.practiceOrder || prev.practiceOrder,
           ragColors: imported.ragColors || prev.ragColors,
           thresholds: imported.thresholds || prev.thresholds,
+          statusRules: imported.statusRules || prev.statusRules,
           colorTheme: imported.colorTheme || prev.colorTheme,
         }));
         return true;
@@ -646,6 +676,7 @@ export function useStore() {
           green: { hex: theme.green.hex, label: prev.ragColors?.green?.label || 'Strong' },
           amber: { hex: theme.amber.hex, label: prev.ragColors?.amber?.label || 'Developing' },
           red: { hex: theme.red.hex, label: prev.ragColors?.red?.label || 'Early Stage' },
+          grey: { hex: theme.grey.hex, label: prev.ragColors?.grey?.label || 'Insufficient Data' },
           none: { hex: theme.none.hex, label: prev.ragColors?.none?.label || 'Not Tracked' },
         },
       };
@@ -701,32 +732,54 @@ export function useStore() {
   const updateThreshold = useCallback((type, level, value) => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
+      // Update both thresholds (for backward compatibility) and statusRules.thresholds
       if (!newData.thresholds) {
         newData.thresholds = DEFAULT_THRESHOLDS;
       }
       if (!newData.thresholds[type]) {
         newData.thresholds[type] = DEFAULT_THRESHOLDS[type];
       }
+      if (!newData.statusRules) {
+        newData.statusRules = DEFAULT_STATUS_RULES;
+      }
+      if (!newData.statusRules.thresholds) {
+        newData.statusRules.thresholds = DEFAULT_STATUS_RULES.thresholds;
+      }
+      if (!newData.statusRules.thresholds[type]) {
+        newData.statusRules.thresholds[type] = DEFAULT_STATUS_RULES.thresholds[type];
+      }
       const numValue = parseInt(value);
       if (!isNaN(numValue) && numValue >= 0 && numValue <= 100) {
         newData.thresholds[type][level] = numValue;
+        newData.statusRules.thresholds[type][level] = numValue;
       }
       return newData;
     });
   }, []);
 
-  // Update status rule type (team or BU)
-  const updateStatusRule = useCallback((type, rule) => {
+  // Toggle a status rule on/off
+  const toggleStatusRule = useCallback((ruleName, enabled) => {
     setData((prev) => {
       const newData = JSON.parse(JSON.stringify(prev));
-      if (!newData.thresholds) {
-        newData.thresholds = DEFAULT_THRESHOLDS;
+      if (!newData.statusRules) {
+        newData.statusRules = DEFAULT_STATUS_RULES;
       }
-      if (!newData.thresholds[type]) {
-        newData.thresholds[type] = DEFAULT_THRESHOLDS[type];
+      if (newData.statusRules[ruleName] !== undefined && ruleName !== 'thresholds') {
+        newData.statusRules[ruleName].enabled = enabled;
       }
-      if (STATUS_RULES[rule]) {
-        newData.thresholds[type].rule = rule;
+      return newData;
+    });
+  }, []);
+
+  // Update a status rule's configuration option
+  const updateStatusRuleConfig = useCallback((ruleName, configKey, value) => {
+    setData((prev) => {
+      const newData = JSON.parse(JSON.stringify(prev));
+      if (!newData.statusRules) {
+        newData.statusRules = DEFAULT_STATUS_RULES;
+      }
+      if (newData.statusRules[ruleName] !== undefined && ruleName !== 'thresholds') {
+        newData.statusRules[ruleName][configKey] = value;
       }
       return newData;
     });
@@ -816,6 +869,16 @@ export function useStore() {
   // Get thresholds with defaults
   const thresholds = data.thresholds || DEFAULT_THRESHOLDS;
 
+  // Get status rules with defaults (merge to ensure all rules exist)
+  const statusRules = {
+    ...DEFAULT_STATUS_RULES,
+    ...data.statusRules,
+    thresholds: {
+      ...DEFAULT_STATUS_RULES.thresholds,
+      ...(data.statusRules?.thresholds || {}),
+    },
+  };
+
   return {
     data,
     currentMonth: data.currentMonth,
@@ -827,7 +890,7 @@ export function useStore() {
     ragColors: data.ragColors || DEFAULT_RAG_COLORS,
     teamTypes: data.teamTypes || DEFAULT_TEAM_TYPES,
     thresholds,
-    statusRules: STATUS_RULES,
+    statusRules,
     darkMode: data.darkMode !== false,
     colorTheme: data.colorTheme || 'default',
     colorThemes: COLOR_THEMES,
@@ -857,7 +920,8 @@ export function useStore() {
     updateMaturityScale,
     updateTeamType,
     updateThreshold,
-    updateStatusRule,
+    toggleStatusRule,
+    updateStatusRuleConfig,
     setDarkMode,
     setColorPreset,
     updateRagColor,
