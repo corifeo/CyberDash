@@ -81,10 +81,13 @@ const DEFAULT_STATUS_RULES = {
   },
 
   // Grey status triggers - conditions that result in grey (insufficient data) BU status
+  // Both conditions can be used simultaneously for maximum flexibility
   grey: {
     enabled: false,
-    trigger: 'scopeThreshold', // 'scopeThreshold' | 'allUntracked'
-    scopeThreshold: 50, // % of teams out of scope to trigger grey
+    useUntrackedThreshold: true, // Check % of untracked teams
+    useDataMaturity: false, // Check if enough periods of data exist
+    scopeThreshold: 50, // % of teams untracked to trigger grey
+    minPeriods: 3, // Minimum periods of data required before showing RAG
     description: 'Show grey BU status when data is insufficient or most teams are out of scope',
   },
 };
