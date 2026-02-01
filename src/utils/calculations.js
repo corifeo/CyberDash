@@ -339,18 +339,28 @@ export function getWeightedBuStatus(squads, practices, statusRules, buTrend = 's
 
   // Check grey status triggers - both conditions can be enabled simultaneously
   if (statusRules?.grey?.enabled) {
-    const useUntrackedThreshold = statusRules.grey.useUntrackedThreshold ?? true;
-    const useDataMaturity = statusRules.grey.useDataMaturity ?? false;
     const scopeThreshold = statusRules.grey.scopeThreshold ?? 50;
     const minPeriods = statusRules.grey.minPeriods ?? 3;
 
-    // Legacy support: if old 'trigger' format exists, convert to new format
-    const legacyTrigger = statusRules.grey.trigger;
-    const effectiveUseUntrackedThreshold = legacyTrigger ? legacyTrigger === 'scopeThreshold' || legacyTrigger === 'allUntracked' : useUntrackedThreshold;
-    const effectiveUseDataMaturity = legacyTrigger ? legacyTrigger === 'dataMaturity' : useDataMaturity;
+    // Determine which conditions to check
+    // New format uses explicit useUntrackedThreshold/useDataMaturity booleans
+    // Legacy format uses single 'trigger' field - only use if new fields aren't explicitly set
+    const hasNewFormat = 'useUntrackedThreshold' in statusRules.grey || 'useDataMaturity' in statusRules.grey;
+
+    let checkUntrackedThreshold, checkDataMaturity;
+    if (hasNewFormat) {
+      // New format: use the checkbox values directly
+      checkUntrackedThreshold = statusRules.grey.useUntrackedThreshold ?? false;
+      checkDataMaturity = statusRules.grey.useDataMaturity ?? false;
+    } else {
+      // Legacy format: convert trigger to boolean flags
+      const legacyTrigger = statusRules.grey.trigger;
+      checkUntrackedThreshold = legacyTrigger === 'scopeThreshold' || legacyTrigger === 'allUntracked';
+      checkDataMaturity = legacyTrigger === 'dataMaturity';
+    }
 
     // Check untracked teams threshold
-    if (effectiveUseUntrackedThreshold && totalSquads > 0) {
+    if (checkUntrackedThreshold && totalSquads > 0) {
       const untrackedPercent = (untrackedCount / totalSquads) * 100;
       if (untrackedPercent >= scopeThreshold) {
         return { status: 'grey', reasons: ['too many teams untracked'], details: { green: 0, amber: 0, red: 0, grey: 0, total: trackedSquads.length, greenPercent: 0, untrackedPercent: Math.round(untrackedPercent) } };
@@ -359,7 +369,7 @@ export function getWeightedBuStatus(squads, practices, statusRules, buTrend = 's
 
     // Data maturity check - requires minimum periods of data in the entire dataset
     // If there are fewer periods than required, ALL BUs will be grey
-    if (effectiveUseDataMaturity && options.months) {
+    if (checkDataMaturity && options.months) {
       const totalPeriods = options.months.length;
       if (totalPeriods < minPeriods) {
         return { status: 'grey', reasons: ['insufficient data history'], details: { green: 0, amber: 0, red: 0, grey: 0, total: trackedSquads.length, greenPercent: 0, periodsAvailable: totalPeriods, minPeriods } };
