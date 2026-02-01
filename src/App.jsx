@@ -4,7 +4,8 @@ import {
   Calendar, Users, ChevronRight, RotateCcw,
   Info, ArrowUpRight, ArrowDownRight, Minus,
   Settings, X, Target, Check, Sun, Moon,
-  ChevronUp, ChevronDown, Eye, EyeOff, Scale, Star, Database
+  ChevronUp, ChevronDown, Eye, EyeOff, Scale, Star, Database,
+  Sliders
 } from 'lucide-react';
 import { useStore } from './store/useStore';
 import {
@@ -33,12 +34,14 @@ import {
   getWeightedBuStatus,
   getNextMonthSuggestion,
 } from './utils/calculations';
+import StatusRulesTab from './components/StatusRulesTab';
 
 // Default hex colors for status (used in settings modal)
 const DEFAULT_HEX_COLORS = {
   green: '#059669',
   amber: '#d97706',
   red: '#dc2626',
+  grey: '#6b7280',
   none: '#64748b',
 };
 
@@ -134,8 +137,6 @@ function SettingsModal({
   colorTheme,
   colorThemes,
   ragColors,
-  thresholds,
-  statusRules,
   darkMode = true,
   onUpdatePractice,
   onAddPractice,
@@ -145,8 +146,6 @@ function SettingsModal({
   onDeleteMonth,
   onSetColorPreset,
   onUpdateRagColor,
-  onUpdateThreshold,
-  onUpdateStatusRule,
   onExportAllArchive,
   onImportAllArchive,
   onExportSettings,
@@ -486,137 +485,15 @@ function SettingsModal({
                 </div>
               </div>
 
-              {/* RAG Status Thresholds */}
+              {/* Status Rules Link */}
               <div className={`${st.cardBg} rounded-lg p-4`}>
-                <h4 className={`text-sm font-medium ${st.textMuted} mb-3`}>Status Thresholds</h4>
-                <p className={`text-xs ${st.textDim} mb-4`}>
-                  Configure the percentage thresholds and calculation rules for automatic status.
-                  Choose different rules to factor in trends when calculating status.
+                <h4 className={`text-sm font-medium ${st.textMuted} mb-2`}>Status Calculation Rules</h4>
+                <p className={`text-xs ${st.textDim} mb-3`}>
+                  Configure thresholds, trend penalties, and other rules that affect status calculation.
                 </p>
-
-                {/* Team Thresholds */}
-                <div className="mb-6">
-                  <h5 className={`text-xs font-medium ${st.textMuted} mb-2`}>Team Status (% of practices at target)</h5>
-
-                  {/* Team Rule Selector */}
-                  <div className={`${st.cardBgAlt} rounded-lg p-3 mb-2`}>
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className={`text-sm ${st.textMuted}`}>Calculation Rule:</span>
-                      <select
-                        value={thresholds?.team?.rule || 'percentage'}
-                        onChange={(e) => onUpdateStatusRule('team', e.target.value)}
-                        className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
-                      >
-                        {statusRules && Object.values(statusRules).map(rule => (
-                          <option key={rule.id} value={rule.id}>{rule.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <p className={`text-xs ${st.textDim}`}>
-                      {statusRules?.[thresholds?.team?.rule || 'percentage']?.description || 'Status based on percentage of practices meeting target'}
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
-                      <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.green?.hex || '#059669' }} />
-                      <span className={`text-sm ${st.textMuted} w-24`}>Green</span>
-                      <span className={`text-xs ${st.textDim}`}>≥</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={thresholds?.team?.green ?? 75}
-                        onChange={(e) => onUpdateThreshold('team', 'green', e.target.value)}
-                        className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
-                      />
-                      <span className={`text-xs ${st.textDim}`}>%</span>
-                    </div>
-                    <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
-                      <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.amber?.hex || '#d97706' }} />
-                      <span className={`text-sm ${st.textMuted} w-24`}>Amber</span>
-                      <span className={`text-xs ${st.textDim}`}>≥</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={thresholds?.team?.amber ?? 40}
-                        onChange={(e) => onUpdateThreshold('team', 'amber', e.target.value)}
-                        className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
-                      />
-                      <span className={`text-xs ${st.textDim}`}>%</span>
-                    </div>
-                    <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
-                      <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.red?.hex || '#dc2626' }} />
-                      <span className={`text-sm ${st.textMuted} w-24`}>Red</span>
-                      <span className={`text-xs ${st.textDim}`}>Below amber</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* BU Thresholds */}
-                <div>
-                  <h5 className={`text-xs font-medium ${st.textMuted} mb-2`}>BU Status (% of green teams)</h5>
-
-                  {/* BU Rule Selector */}
-                  <div className={`${st.cardBgAlt} rounded-lg p-3 mb-2`}>
-                    <div className="flex items-center gap-3 mb-2">
-                      <span className={`text-sm ${st.textMuted}`}>Calculation Rule:</span>
-                      <select
-                        value={thresholds?.bu?.rule || 'percentage'}
-                        onChange={(e) => onUpdateStatusRule('bu', e.target.value)}
-                        className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
-                      >
-                        {statusRules && Object.values(statusRules).map(rule => (
-                          <option key={rule.id} value={rule.id}>{rule.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <p className={`text-xs ${st.textDim}`}>
-                      {statusRules?.[thresholds?.bu?.rule || 'percentage']?.description || 'Status based on percentage of green teams'}
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
-                      <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.green?.hex || '#059669' }} />
-                      <span className={`text-sm ${st.textMuted} w-24`}>Green</span>
-                      <span className={`text-xs ${st.textDim}`}>≥</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={thresholds?.bu?.green ?? 75}
-                        onChange={(e) => onUpdateThreshold('bu', 'green', e.target.value)}
-                        className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
-                      />
-                      <span className={`text-xs ${st.textDim}`}>%</span>
-                    </div>
-                    <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
-                      <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.amber?.hex || '#d97706' }} />
-                      <span className={`text-sm ${st.textMuted} w-24`}>Amber</span>
-                      <span className={`text-xs ${st.textDim}`}>≥</span>
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="5"
-                        value={thresholds?.bu?.amber ?? 40}
-                        onChange={(e) => onUpdateThreshold('bu', 'amber', e.target.value)}
-                        className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
-                      />
-                      <span className={`text-xs ${st.textDim}`}>%</span>
-                    </div>
-                    <div className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
-                      <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.red?.hex || '#dc2626' }} />
-                      <span className={`text-sm ${st.textMuted} w-24`}>Red</span>
-                      <span className={`text-xs ${st.textDim}`}>Below amber</span>
-                    </div>
-                  </div>
-                </div>
+                <p className={`text-xs ${st.textHint}`}>
+                  Click the <span className="inline-flex items-center gap-1 text-cyber-400"><Sliders className="w-3 h-3" /> Status Rules</span> button in the header to configure these settings.
+                </p>
               </div>
             </div>
           )}
@@ -660,7 +537,7 @@ function SettingsModal({
                   {colorTheme === 'custom' && <span className="ml-2 text-xs text-cyber-400">(Custom)</span>}
                 </h3>
                 <div className="space-y-2">
-                  {['green', 'amber', 'red', 'none'].map((status) => (
+                  {['green', 'amber', 'red', 'grey', 'none'].map((status) => (
                     <div key={status} className={`flex items-center gap-3 ${st.cardBgAlt} rounded-lg p-3`}>
                       {/* Color picker */}
                       <input
@@ -894,6 +771,7 @@ export default function App() {
   const [selectedSquad, setSelectedSquad] = useState(null);
   const [showNewMonth, setShowNewMonth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showStatusRules, setShowStatusRules] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -936,6 +814,7 @@ export default function App() {
   const goHome = () => {
     setSelectedBU(null);
     setSelectedSquad(null);
+    setShowStatusRules(false);
   };
 
   const openNewMonthModal = () => {
@@ -1075,6 +954,13 @@ export default function App() {
                 <Upload className="w-4 h-4" />
               </button>
               <button
+                onClick={() => setShowStatusRules(true)}
+                className={`p-1.5 ${theme.mutedBg} ${theme.hover} rounded ${!editMode ? 'invisible' : ''}`}
+                title="Status Rules"
+              >
+                <Sliders className="w-4 h-4" />
+              </button>
+              <button
                 onClick={() => setShowSettings(true)}
                 className={`p-1.5 ${theme.mutedBg} ${theme.hover} rounded ${!editMode ? 'invisible' : ''}`}
                 title="Settings"
@@ -1106,8 +992,6 @@ export default function App() {
           colorTheme={store.colorTheme}
           colorThemes={store.colorThemes}
           ragColors={store.ragColors}
-          thresholds={store.thresholds}
-          statusRules={store.statusRules}
           darkMode={store.darkMode}
           onUpdatePractice={store.updatePractice}
           onAddPractice={store.addPractice}
@@ -1117,8 +1001,6 @@ export default function App() {
           onDeleteMonth={store.deleteMonth}
           onSetColorPreset={store.setColorPreset}
           onUpdateRagColor={store.updateRagColor}
-          onUpdateThreshold={store.updateThreshold}
-          onUpdateStatusRule={store.updateStatusRule}
           onExportAllArchive={store.exportAllArchive}
           onImportAllArchive={store.importAllArchive}
           onExportSettings={store.exportSettings}
@@ -1184,7 +1066,13 @@ export default function App() {
           <button onClick={goHome} className={`${theme.muted} hover:opacity-70 transition-colors`}>
             Overview
           </button>
-          {currentBU && (
+          {showStatusRules && (
+            <>
+              <ChevronRight className={`w-5 h-5 ${theme.muted}`} />
+              <span className="font-semibold">Status Rules</span>
+            </>
+          )}
+          {currentBU && !showStatusRules && (
             <>
               <ChevronRight className={`w-5 h-5 ${theme.muted}`} />
               <button
@@ -1195,7 +1083,7 @@ export default function App() {
               </button>
             </>
           )}
-          {currentSquad && (
+          {currentSquad && !showStatusRules && (
             <>
               <ChevronRight className={`w-5 h-5 ${theme.muted}`} />
               <span className="font-semibold">{currentSquad.name}</span>
@@ -1203,8 +1091,17 @@ export default function App() {
           )}
         </nav>
 
-        {/* Squad Detail View */}
-        {currentSquad && currentBU ? (
+        {/* Status Rules View */}
+        {showStatusRules ? (
+          <StatusRulesTab
+            statusRules={store.statusRules}
+            ragColors={store.ragColors}
+            darkMode={store.darkMode}
+            onUpdateThreshold={store.updateThreshold}
+            onToggleRule={store.toggleStatusRule}
+            onUpdateRuleConfig={store.updateStatusRuleConfig}
+          />
+        ) : currentSquad && currentBU ? (
           <div className="space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-4">
               <h2 className="text-2xl font-bold">
@@ -1219,12 +1116,15 @@ export default function App() {
                 // Calculate trend for rule-based status calculation
                 const maxLevel = getMaxMaturityLevel(store.maturityScale);
                 const teamTrend = calculateAutoTrend(currentSquad, previousMonthData, currentBU.id, store.practices, maxLevel);
-                const autoRag = calculateAutoRagStatus(currentSquad, store.practices, store.thresholds.team, teamTrend);
+                const autoRag = calculateAutoRagStatus(currentSquad, store.practices, store.statusRules, teamTrend);
                 const isAutoStatus = currentSquad.autoStatus !== false; // Default to auto
                 const displayStatus = currentSquad.tracked === false ? 'none' : (isAutoStatus ? autoRag : (currentSquad.status || autoRag));
                 const sc = getStatusInfo(store.ragColors, displayStatus);
                 const adoptedInfo = getAdoptedCount(currentSquad.practices, store.practices);
-                const ruleLabel = store.thresholds?.team?.rule !== 'percentage' ? ` [${store.statusRules?.[store.thresholds?.team?.rule]?.name || ''}]` : '';
+                const activeRules = [];
+                if (store.statusRules?.trend?.enabled) activeRules.push('Trend');
+                if (store.statusRules?.practiceImportance?.enabled) activeRules.push('Importance');
+                const ruleLabel = activeRules.length > 0 ? ` [${activeRules.join(', ')}]` : '';
                 return (
                   <div
                     className="px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2"
@@ -1486,7 +1386,7 @@ export default function App() {
                 const maxLevel = getMaxMaturityLevel(store.maturityScale);
                 const autoTrend = calculateAutoTrend(squad, previousMonthData, currentBU.id, store.practices, maxLevel);
                 // Use effective status (considering auto-status and trend for rule-based calculation)
-                const displayStatus = getEffectiveSquadStatus(squad, store.practices, store.thresholds.team, autoTrend);
+                const displayStatus = getEffectiveSquadStatus(squad, store.practices, store.statusRules, autoTrend);
                 const statusInfo = getStatusInfo(store.ragColors, displayStatus);
                 const { adopted, total, meetsTarget } = getAdoptedCount(squad.practices || {}, store.practices);
                 const trend = trendConfig[autoTrend] || trendConfig.stable;
@@ -1615,12 +1515,11 @@ export default function App() {
                 const buTrend = calculateBUAutoTrend(bu, previousMonthData, store.practices, maxLevel);
 
                 // Use weighted calculation based on tracked squads and their weights
-                // Pass buTrend and previous month data for trend-based rule calculations
+                // Pass statusRules for all rule-based calculations
                 const { status: dominantStatus, details: statusDetails } = getWeightedBuStatus(
                   bu.squads,
                   store.practices,
-                  store.thresholds.team,
-                  store.thresholds.bu,
+                  store.statusRules,
                   buTrend,
                   previousMonthData,
                   bu,
@@ -1695,13 +1594,14 @@ export default function App() {
                         {bu.squads.map((squad) => {
                           // Calculate trend first for rule-based status calculation
                           const squadTrend = getTeamAutoTrend(squad);
-                          const squadStatus = getEffectiveSquadStatus(squad, store.practices, store.thresholds.team, squadTrend);
+                          const squadStatus = getEffectiveSquadStatus(squad, store.practices, store.statusRules, squadTrend);
                           const squadInfo = getStatusInfo(store.ragColors, squadStatus);
                           const trendIcon = getTrendIcon(squad);
                           // Use white-based opacity for pills on colored background
                           const pillOpacity = squadStatus === 'green' ? 'bg-white/90' :
                                              squadStatus === 'amber' ? 'bg-white/70' :
-                                             squadStatus === 'red' ? 'bg-white/40' : 'bg-white/20 border border-white/30';
+                                             squadStatus === 'red' ? 'bg-white/40' :
+                                             squadStatus === 'grey' ? 'bg-white/30 border border-white/40' : 'bg-white/20 border border-white/30';
                           return (
                             <div
                               key={squad.id}
