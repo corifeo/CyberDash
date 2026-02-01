@@ -33,6 +33,7 @@ const DEFAULT_TEAM_TYPES = [
 
 // Toggleable status rules configuration
 // Each rule can be enabled/disabled independently and has its own configuration
+// Rules are separated into Team rules (affect team status) and BU rules (affect BU status)
 const DEFAULT_STATUS_RULES = {
   // Core thresholds (always active, defines green/amber/red boundaries)
   thresholds: {
@@ -40,24 +41,20 @@ const DEFAULT_STATUS_RULES = {
     bu: { green: 75, amber: 40 },
   },
 
-  // Trend modifier - penalizes declining trends
+  // ===== TEAM RULES (affect how team status is calculated from practices) =====
+
+  // Team trend modifier - penalizes declining team trends
   trend: {
     enabled: false,
     mode: 'penalty', // 'penalty' = downgrade by 1, 'strict' = declining caps at amber
-    description: 'Penalize declining trends by downgrading status',
+    description: 'Penalize teams with declining trends by downgrading their status',
   },
 
-  // Team weights - consider team weight in BU calculations
-  teamWeights: {
-    enabled: true, // On by default as it was before
-    description: 'Weight teams differently in BU status calculation',
-  },
-
-  // Practice importance - important practices count more
+  // Practice importance - important practices count more for team status
   practiceImportance: {
     enabled: false,
     importantWeight: 1.5, // Important practices count 1.5x
-    description: 'Important practices (starred) have more impact on status',
+    description: 'Important practices (starred) have more impact on team status',
   },
 
   // Stagnation penalty - penalize teams stuck below target
@@ -68,12 +65,27 @@ const DEFAULT_STATUS_RULES = {
     description: 'Penalize teams under target for multiple months without improvement',
   },
 
-  // Grey status triggers - conditions that result in grey (insufficient data) status
+  // ===== BU RULES (affect how BU status is calculated from team statuses) =====
+
+  // Team weights - consider team weight in BU calculations
+  teamWeights: {
+    enabled: true, // On by default as it was before
+    description: 'Weight teams differently in BU status calculation',
+  },
+
+  // BU trend modifier - penalizes declining BU trends
+  buTrend: {
+    enabled: false,
+    mode: 'penalty', // 'penalty' = downgrade by 1, 'strict' = declining caps at amber
+    description: 'Penalize BUs with declining overall trend by downgrading their status',
+  },
+
+  // Grey status triggers - conditions that result in grey (insufficient data) BU status
   grey: {
     enabled: false,
-    trigger: 'scopeThreshold', // 'scopeThreshold' | 'allUntracked' | 'noPractices'
+    trigger: 'scopeThreshold', // 'scopeThreshold' | 'allUntracked'
     scopeThreshold: 50, // % of teams out of scope to trigger grey
-    description: 'Show grey status when data is insufficient or most teams are out of scope',
+    description: 'Show grey BU status when data is insufficient or most teams are out of scope',
   },
 };
 

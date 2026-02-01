@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   TrendingUp, Users, Star, Clock, HelpCircle,
   ToggleLeft, ToggleRight, ChevronDown, ChevronUp,
-  AlertTriangle, Info
+  AlertTriangle, Info, Building2, UserCircle
 } from 'lucide-react';
 
 // Rule card component for individual toggleable rules
@@ -15,6 +15,7 @@ function RuleCard({
   children,
   darkMode,
   alwaysEnabled = false,
+  badge = null,
 }) {
   const [expanded, setExpanded] = useState(enabled);
 
@@ -42,13 +43,14 @@ function RuleCard({
             <Icon className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h3 className={`font-medium ${st.text}`}>{title}</h3>
               {alwaysEnabled && (
                 <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded">
                   Always Active
                 </span>
               )}
+              {badge}
             </div>
             <p className={`text-sm ${st.textHint} mt-1`}>{description}</p>
           </div>
@@ -86,6 +88,35 @@ function RuleCard({
   );
 }
 
+// Section header component
+function SectionHeader({ icon: Icon, title, subtitle, darkMode, accentColor = 'cyber' }) {
+  const st = darkMode ? {
+    text: 'text-white',
+    textMuted: 'text-slate-400',
+    border: 'border-slate-700',
+  } : {
+    text: 'text-slate-900',
+    textMuted: 'text-slate-500',
+    border: 'border-slate-200',
+  };
+
+  const accentClasses = accentColor === 'amber'
+    ? 'bg-amber-500/20 text-amber-400'
+    : 'bg-cyber-500/20 text-cyber-400';
+
+  return (
+    <div className={`flex items-center gap-3 pb-3 border-b ${st.border} mb-4`}>
+      <div className={`p-2 rounded-lg ${accentClasses}`}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div>
+        <h3 className={`font-semibold ${st.text}`}>{title}</h3>
+        <p className={`text-sm ${st.textMuted}`}>{subtitle}</p>
+      </div>
+    </div>
+  );
+}
+
 // Main StatusRulesTab component
 export default function StatusRulesTab({
   statusRules,
@@ -103,6 +134,7 @@ export default function StatusRulesTab({
     input: 'bg-slate-800 border-slate-700 text-white',
     cardBg: 'bg-slate-800/50',
     border: 'border-slate-700',
+    section: 'bg-slate-800/30 border-slate-700',
   } : {
     bg: 'bg-white',
     text: 'text-slate-900',
@@ -111,44 +143,245 @@ export default function StatusRulesTab({
     input: 'bg-white border-slate-300 text-slate-900',
     cardBg: 'bg-slate-50',
     border: 'border-slate-200',
+    section: 'bg-slate-50 border-slate-200',
   };
 
+  // Badge components for clarity
+  const TeamBadge = () => (
+    <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded flex items-center gap-1">
+      <UserCircle className="w-3 h-3" /> Team
+    </span>
+  );
+
+  const BUBadge = () => (
+    <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded flex items-center gap-1">
+      <Building2 className="w-3 h-3" /> BU
+    </span>
+  );
+
+  const BothBadge = () => (
+    <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded">
+      Team + BU
+    </span>
+  );
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div>
         <h2 className={`text-xl font-bold ${st.text}`}>Status Rules</h2>
         <p className={`text-sm ${st.textHint} mt-1`}>
-          Configure how RAG status is calculated. Toggle rules on/off to customize the calculation.
+          Configure how RAG status is calculated for teams and business units.
         </p>
       </div>
 
-      {/* Info banner */}
-      <div className={`flex items-start gap-3 p-4 rounded-lg ${darkMode ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
+      {/* How it works */}
+      <div className={`flex items-start gap-3 p-4 rounded-lg ${darkMode ? 'bg-slate-800/50 border border-slate-700' : 'bg-slate-50 border border-slate-200'}`}>
         <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
         <div className={`text-sm ${st.textMuted}`}>
-          <p className="font-medium mb-1">How status calculation works</p>
-          <p className={st.textHint}>
-            The base status is always calculated from practice adoption thresholds. Additional rules can modify
-            this status - for example, enabling the Trend rule will downgrade teams with declining performance.
-            Rules are applied in order from top to bottom.
-          </p>
+          <p className="font-medium mb-2">How status flows from Teams to Business Units</p>
+          <div className={`text-xs ${st.textHint} space-y-1`}>
+            <p><strong className="text-blue-400">1. Team Status</strong> = % of practices meeting target (affected by Team rules below)</p>
+            <p><strong className="text-amber-400">2. BU Status</strong> = % of teams that are Green (affected by BU rules below)</p>
+          </div>
         </div>
       </div>
 
-      {/* Core Thresholds (always active) */}
-      <RuleCard
-        title="Core Thresholds"
-        description="Define the percentage boundaries for Green, Amber, and Red status. This is always active."
-        icon={AlertTriangle}
-        enabled={true}
-        alwaysEnabled={true}
-        darkMode={darkMode}
-      >
+      {/* ============================================ */}
+      {/* BUSINESS UNIT RULES - Shown first since this is what matters most */}
+      {/* ============================================ */}
+      <div className={`rounded-xl border p-5 ${st.section}`}>
+        <SectionHeader
+          icon={Building2}
+          title="Business Unit Status Rules"
+          subtitle="These rules determine how BU status is calculated from team statuses"
+          darkMode={darkMode}
+          accentColor="amber"
+        />
+
+        <div className="space-y-4">
+          {/* BU Thresholds */}
+          <RuleCard
+            title="BU Status Thresholds"
+            description="What percentage of teams need to be Green for the BU to be Green?"
+            icon={AlertTriangle}
+            enabled={true}
+            alwaysEnabled={true}
+            darkMode={darkMode}
+            badge={<BUBadge />}
+          >
+            <div className="space-y-3">
+              <p className={`text-xs ${st.textHint} mb-3`}>
+                BU status is based on the percentage of teams that are Green.
+                <strong className="text-amber-400"> This is what stakeholders see.</strong>
+              </p>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.green?.hex || '#059669' }} />
+                  <span className={`text-sm ${st.textMuted} w-20`}>Green</span>
+                  <span className={`text-xs ${st.textHint}`}>≥</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={statusRules?.thresholds?.bu?.green ?? 75}
+                    onChange={(e) => onUpdateThreshold('bu', 'green', e.target.value)}
+                    className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
+                  />
+                  <span className={`text-xs ${st.textHint}`}>% of teams are Green</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.amber?.hex || '#d97706' }} />
+                  <span className={`text-sm ${st.textMuted} w-20`}>Amber</span>
+                  <span className={`text-xs ${st.textHint}`}>≥</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={statusRules?.thresholds?.bu?.amber ?? 40}
+                    onChange={(e) => onUpdateThreshold('bu', 'amber', e.target.value)}
+                    className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
+                  />
+                  <span className={`text-xs ${st.textHint}`}>% of teams are Green</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.red?.hex || '#dc2626' }} />
+                  <span className={`text-sm ${st.textMuted} w-20`}>Red</span>
+                  <span className={`text-xs ${st.textHint} ml-6`}>Below {statusRules?.thresholds?.bu?.amber ?? 40}% of teams are Green</span>
+                </div>
+              </div>
+            </div>
+          </RuleCard>
+
+          {/* Team Weights Rule - BU only */}
+          <RuleCard
+            title="Team Weights"
+            description="Some teams count more than others when calculating BU status."
+            icon={Users}
+            enabled={statusRules?.teamWeights?.enabled}
+            onToggle={(enabled) => onToggleRule('teamWeights', enabled)}
+            darkMode={darkMode}
+            badge={<BUBadge />}
+          >
+            <div className="space-y-2">
+              <p className={`text-xs ${st.textHint}`}>
+                Each team has a weight (0.1 to 1.0). A team with weight 0.5 counts half as much as weight 1.0.
+              </p>
+              <p className={`text-xs ${st.textHint}`}>
+                <strong>Example:</strong> If you have 2 teams - one Green (weight 1.0) and one Red (weight 0.5) -
+                the BU is calculated as 67% Green (1.0 / 1.5), not 50%.
+              </p>
+              <p className={`text-xs text-amber-400`}>
+                Configure individual team weights in each team's detail view.
+              </p>
+            </div>
+          </RuleCard>
+
+          {/* BU Trend Rule */}
+          <RuleCard
+            title="BU Trend Penalty"
+            description="Downgrade BU status if the overall trend is declining."
+            icon={TrendingUp}
+            enabled={statusRules?.buTrend?.enabled}
+            onToggle={(enabled) => onToggleRule('buTrend', enabled)}
+            darkMode={darkMode}
+            badge={<BUBadge />}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className={`text-sm ${st.textMuted}`}>Mode:</span>
+                <select
+                  value={statusRules?.buTrend?.mode || 'penalty'}
+                  onChange={(e) => onUpdateRuleConfig('buTrend', 'mode', e.target.value)}
+                  className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
+                >
+                  <option value="penalty">Downgrade by one level (Green → Amber → Red)</option>
+                  <option value="strict">Declining BU capped at Amber (can't be Green)</option>
+                </select>
+              </div>
+              <p className={`text-xs ${st.textHint}`}>
+                BU trend is auto-calculated by comparing average team scores with the previous month.
+              </p>
+            </div>
+          </RuleCard>
+
+          {/* Grey Status Rule - BU only */}
+          <RuleCard
+            title="Grey Status (Insufficient Data)"
+            description="Show grey instead of RAG when there isn't enough data for a meaningful BU status."
+            icon={HelpCircle}
+            enabled={statusRules?.grey?.enabled}
+            onToggle={(enabled) => onToggleRule('grey', enabled)}
+            darkMode={darkMode}
+            badge={<BUBadge />}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className={`text-sm ${st.textMuted}`}>Show Grey when:</span>
+                <select
+                  value={statusRules?.grey?.trigger || 'scopeThreshold'}
+                  onChange={(e) => onUpdateRuleConfig('grey', 'trigger', e.target.value)}
+                  className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
+                >
+                  <option value="scopeThreshold">Too many teams are out of scope</option>
+                  <option value="allUntracked">All teams are untracked</option>
+                </select>
+              </div>
+
+              {statusRules?.grey?.trigger === 'scopeThreshold' && (
+                <div className="flex items-center gap-3">
+                  <span className={`text-sm ${st.textMuted}`}>Threshold:</span>
+                  <input
+                    type="number"
+                    min="10"
+                    max="100"
+                    step="5"
+                    value={statusRules?.grey?.scopeThreshold ?? 50}
+                    onChange={(e) => onUpdateRuleConfig('grey', 'scopeThreshold', parseInt(e.target.value))}
+                    className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
+                  />
+                  <span className={`text-xs ${st.textHint}`}>% or more teams out of scope → Grey</span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 mt-2">
+                <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.grey?.hex || '#6b7280' }} />
+                <span className={`text-sm ${st.textMuted}`}>Grey = "{ragColors?.grey?.label || 'Insufficient Data'}"</span>
+              </div>
+
+              <p className={`text-xs ${st.textHint}`}>
+                Use this to avoid showing misleading Red/Amber when you simply don't have enough data.
+              </p>
+            </div>
+          </RuleCard>
+        </div>
+      </div>
+
+      {/* ============================================ */}
+      {/* TEAM RULES */}
+      {/* ============================================ */}
+      <div className={`rounded-xl border p-5 ${st.section}`}>
+        <SectionHeader
+          icon={UserCircle}
+          title="Team Status Rules"
+          subtitle="These rules determine how individual team status is calculated from practices"
+          darkMode={darkMode}
+          accentColor="cyber"
+        />
+
         <div className="space-y-4">
           {/* Team Thresholds */}
-          <div>
-            <h4 className={`text-sm font-medium ${st.textMuted} mb-2`}>Team Status (% of practices at target)</h4>
+          <RuleCard
+            title="Team Status Thresholds"
+            description="What percentage of practices need to be at target for a team to be Green?"
+            icon={AlertTriangle}
+            enabled={true}
+            alwaysEnabled={true}
+            darkMode={darkMode}
+            badge={<TeamBadge />}
+          >
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.green?.hex || '#059669' }} />
@@ -163,7 +396,7 @@ export default function StatusRulesTab({
                   onChange={(e) => onUpdateThreshold('team', 'green', e.target.value)}
                   className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
                 />
-                <span className={`text-xs ${st.textHint}`}>%</span>
+                <span className={`text-xs ${st.textHint}`}>% of practices at target</span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.amber?.hex || '#d97706' }} />
@@ -178,226 +411,119 @@ export default function StatusRulesTab({
                   onChange={(e) => onUpdateThreshold('team', 'amber', e.target.value)}
                   className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
                 />
-                <span className={`text-xs ${st.textHint}`}>%</span>
+                <span className={`text-xs ${st.textHint}`}>% of practices at target</span>
               </div>
               <div className="flex items-center gap-3">
                 <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.red?.hex || '#dc2626' }} />
                 <span className={`text-sm ${st.textMuted} w-20`}>Red</span>
-                <span className={`text-xs ${st.textHint} ml-6`}>Below amber threshold</span>
+                <span className={`text-xs ${st.textHint} ml-6`}>Below {statusRules?.thresholds?.team?.amber ?? 40}% of practices at target</span>
               </div>
             </div>
-          </div>
+          </RuleCard>
 
-          {/* BU Thresholds */}
-          <div className="pt-3 border-t border-slate-600/30">
-            <h4 className={`text-sm font-medium ${st.textMuted} mb-2`}>BU Status (% of green teams)</h4>
-            <div className="space-y-2">
+          {/* Team Trend Rule */}
+          <RuleCard
+            title="Team Trend Penalty"
+            description="Downgrade team status if their trend is declining."
+            icon={TrendingUp}
+            enabled={statusRules?.trend?.enabled}
+            onToggle={(enabled) => onToggleRule('trend', enabled)}
+            darkMode={darkMode}
+            badge={<TeamBadge />}
+          >
+            <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.green?.hex || '#059669' }} />
-                <span className={`text-sm ${st.textMuted} w-20`}>Green</span>
-                <span className={`text-xs ${st.textHint}`}>≥</span>
+                <span className={`text-sm ${st.textMuted}`}>Mode:</span>
+                <select
+                  value={statusRules?.trend?.mode || 'penalty'}
+                  onChange={(e) => onUpdateRuleConfig('trend', 'mode', e.target.value)}
+                  className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
+                >
+                  <option value="penalty">Downgrade by one level (Green → Amber → Red)</option>
+                  <option value="strict">Declining teams capped at Amber (can't be Green)</option>
+                </select>
+              </div>
+              <p className={`text-xs ${st.textHint}`}>
+                Team trend is auto-calculated by comparing practice scores with the previous month.
+                This affects how many teams appear Green, which affects BU status.
+              </p>
+            </div>
+          </RuleCard>
+
+          {/* Practice Importance Rule - Team only */}
+          <RuleCard
+            title="Practice Importance"
+            description="Starred practices count more when calculating team status."
+            icon={Star}
+            enabled={statusRules?.practiceImportance?.enabled}
+            onToggle={(enabled) => onToggleRule('practiceImportance', enabled)}
+            darkMode={darkMode}
+            badge={<TeamBadge />}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className={`text-sm ${st.textMuted}`}>Important practice weight:</span>
                 <input
                   type="number"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={statusRules?.thresholds?.bu?.green ?? 75}
-                  onChange={(e) => onUpdateThreshold('bu', 'green', e.target.value)}
+                  min="1"
+                  max="3"
+                  step="0.25"
+                  value={statusRules?.practiceImportance?.importantWeight ?? 1.5}
+                  onChange={(e) => onUpdateRuleConfig('practiceImportance', 'importantWeight', parseFloat(e.target.value))}
                   className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
                 />
-                <span className={`text-xs ${st.textHint}`}>%</span>
+                <span className={`text-xs ${st.textHint}`}>x multiplier</span>
               </div>
+              <p className={`text-xs ${st.textHint}`}>
+                Mark practices as important (⭐) in Settings → Practices.
+                A 1.5x weight means failing an important practice hurts more.
+              </p>
+            </div>
+          </RuleCard>
+
+          {/* Stagnation Penalty Rule - Team only */}
+          <RuleCard
+            title="Stagnation Penalty"
+            description="Penalize teams stuck below target for multiple months."
+            icon={Clock}
+            enabled={statusRules?.stagnation?.enabled}
+            onToggle={(enabled) => onToggleRule('stagnation', enabled)}
+            darkMode={darkMode}
+            badge={<TeamBadge />}
+          >
+            <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.amber?.hex || '#d97706' }} />
-                <span className={`text-sm ${st.textMuted} w-20`}>Amber</span>
-                <span className={`text-xs ${st.textHint}`}>≥</span>
+                <span className={`text-sm ${st.textMuted}`}>Months without progress:</span>
                 <input
                   type="number"
-                  min="0"
-                  max="100"
-                  step="5"
-                  value={statusRules?.thresholds?.bu?.amber ?? 40}
-                  onChange={(e) => onUpdateThreshold('bu', 'amber', e.target.value)}
+                  min="2"
+                  max="12"
+                  step="1"
+                  value={statusRules?.stagnation?.monthsThreshold ?? 3}
+                  onChange={(e) => onUpdateRuleConfig('stagnation', 'monthsThreshold', parseInt(e.target.value))}
                   className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
                 />
-                <span className={`text-xs ${st.textHint}`}>%</span>
+                <span className={`text-xs ${st.textHint}`}>months</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.red?.hex || '#dc2626' }} />
-                <span className={`text-sm ${st.textMuted} w-20`}>Red</span>
-                <span className={`text-xs ${st.textHint} ml-6`}>Below amber threshold</span>
+                <span className={`text-sm ${st.textMuted}`}>Penalty:</span>
+                <select
+                  value={statusRules?.stagnation?.penalty || 'downgrade'}
+                  onChange={(e) => onUpdateRuleConfig('stagnation', 'penalty', e.target.value)}
+                  className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
+                >
+                  <option value="downgrade">Downgrade by one level</option>
+                  <option value="red">Force Red status</option>
+                </select>
               </div>
+              <p className={`text-xs ${st.textHint}`}>
+                Teams that haven't improved any practice in {statusRules?.stagnation?.monthsThreshold ?? 3} months
+                get penalized. This encourages continuous improvement.
+              </p>
             </div>
-          </div>
+          </RuleCard>
         </div>
-      </RuleCard>
-
-      {/* Trend Rule */}
-      <RuleCard
-        title="Trend Penalty"
-        description="Penalize teams with declining trends by downgrading their status."
-        icon={TrendingUp}
-        enabled={statusRules?.trend?.enabled}
-        onToggle={(enabled) => onToggleRule('trend', enabled)}
-        darkMode={darkMode}
-      >
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <span className={`text-sm ${st.textMuted}`}>Mode:</span>
-            <select
-              value={statusRules?.trend?.mode || 'penalty'}
-              onChange={(e) => onUpdateRuleConfig('trend', 'mode', e.target.value)}
-              className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
-            >
-              <option value="penalty">Downgrade by one level (Green → Amber → Red)</option>
-              <option value="strict">Declining teams capped at Amber (can't be Green)</option>
-            </select>
-          </div>
-          <p className={`text-xs ${st.textHint}`}>
-            {statusRules?.trend?.mode === 'strict'
-              ? 'Strict mode: Teams with declining trend cannot achieve Green status, regardless of their practice adoption.'
-              : 'Penalty mode: Teams with declining trend have their status reduced by one level (e.g., Green becomes Amber).'}
-          </p>
-        </div>
-      </RuleCard>
-
-      {/* Team Weights Rule */}
-      <RuleCard
-        title="Team Weights"
-        description="Weight teams differently in BU status calculations. Higher-weighted teams have more impact."
-        icon={Users}
-        enabled={statusRules?.teamWeights?.enabled}
-        onToggle={(enabled) => onToggleRule('teamWeights', enabled)}
-        darkMode={darkMode}
-      >
-        <p className={`text-xs ${st.textHint}`}>
-          Each team has a weight value (0.1 to 1.0) that determines its influence on the BU status.
-          A team with weight 0.5 contributes half as much as a team with weight 1.0.
-          Configure individual team weights in the team detail view.
-        </p>
-      </RuleCard>
-
-      {/* Practice Importance Rule */}
-      <RuleCard
-        title="Practice Importance"
-        description="Important practices (marked with star) have more impact on status calculation."
-        icon={Star}
-        enabled={statusRules?.practiceImportance?.enabled}
-        onToggle={(enabled) => onToggleRule('practiceImportance', enabled)}
-        darkMode={darkMode}
-      >
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <span className={`text-sm ${st.textMuted}`}>Important practice weight:</span>
-            <input
-              type="number"
-              min="1"
-              max="3"
-              step="0.25"
-              value={statusRules?.practiceImportance?.importantWeight ?? 1.5}
-              onChange={(e) => onUpdateRuleConfig('practiceImportance', 'importantWeight', parseFloat(e.target.value))}
-              className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
-            />
-            <span className={`text-xs ${st.textHint}`}>x multiplier</span>
-          </div>
-          <p className={`text-xs ${st.textHint}`}>
-            Mark practices as important (star icon) in Settings → Practices. A weight of 1.5x means important
-            practices count 50% more towards the status calculation.
-          </p>
-        </div>
-      </RuleCard>
-
-      {/* Stagnation Penalty Rule */}
-      <RuleCard
-        title="Stagnation Penalty"
-        description="Penalize teams that have been below target for multiple months without improvement."
-        icon={Clock}
-        enabled={statusRules?.stagnation?.enabled}
-        onToggle={(enabled) => onToggleRule('stagnation', enabled)}
-        darkMode={darkMode}
-      >
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <span className={`text-sm ${st.textMuted}`}>Months without progress:</span>
-            <input
-              type="number"
-              min="2"
-              max="12"
-              step="1"
-              value={statusRules?.stagnation?.monthsThreshold ?? 3}
-              onChange={(e) => onUpdateRuleConfig('stagnation', 'monthsThreshold', parseInt(e.target.value))}
-              className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
-            />
-            <span className={`text-xs ${st.textHint}`}>months</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className={`text-sm ${st.textMuted}`}>Penalty:</span>
-            <select
-              value={statusRules?.stagnation?.penalty || 'downgrade'}
-              onChange={(e) => onUpdateRuleConfig('stagnation', 'penalty', e.target.value)}
-              className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
-            >
-              <option value="downgrade">Downgrade by one level</option>
-              <option value="red">Force Red status</option>
-            </select>
-          </div>
-          <p className={`text-xs ${st.textHint}`}>
-            A team is considered stagnant if it has been below its target status for the specified number
-            of consecutive months without any practice improvement.
-          </p>
-        </div>
-      </RuleCard>
-
-      {/* Grey Status Rule */}
-      <RuleCard
-        title="Grey Status (Insufficient Data)"
-        description="Show grey status when there isn't enough data to calculate a meaningful status."
-        icon={HelpCircle}
-        enabled={statusRules?.grey?.enabled}
-        onToggle={(enabled) => onToggleRule('grey', enabled)}
-        darkMode={darkMode}
-      >
-        <div className="space-y-3">
-          <div className="flex items-center gap-3">
-            <span className={`text-sm ${st.textMuted}`}>Trigger when:</span>
-            <select
-              value={statusRules?.grey?.trigger || 'scopeThreshold'}
-              onChange={(e) => onUpdateRuleConfig('grey', 'trigger', e.target.value)}
-              className={`flex-1 ${st.input} border rounded px-2 py-1.5 text-sm focus:border-cyber-500 outline-none`}
-            >
-              <option value="scopeThreshold">Percentage of teams are out of scope</option>
-              <option value="allUntracked">All teams are untracked</option>
-              <option value="noPractices">No practices have been scored</option>
-            </select>
-          </div>
-
-          {statusRules?.grey?.trigger === 'scopeThreshold' && (
-            <div className="flex items-center gap-3">
-              <span className={`text-sm ${st.textMuted}`}>Threshold:</span>
-              <input
-                type="number"
-                min="10"
-                max="100"
-                step="5"
-                value={statusRules?.grey?.scopeThreshold ?? 50}
-                onChange={(e) => onUpdateRuleConfig('grey', 'scopeThreshold', parseInt(e.target.value))}
-                className={`w-16 ${st.input} border rounded px-2 py-1.5 text-sm font-mono focus:border-cyber-500 outline-none`}
-              />
-              <span className={`text-xs ${st.textHint}`}>% of teams out of scope</span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 mt-2">
-            <span className="w-4 h-4 rounded" style={{ backgroundColor: ragColors?.grey?.hex || '#6b7280' }} />
-            <span className={`text-sm ${st.textMuted}`}>Grey: {ragColors?.grey?.label || 'Insufficient Data'}</span>
-          </div>
-
-          <p className={`text-xs ${st.textHint}`}>
-            Grey status indicates that there isn't enough reliable data to determine the actual health
-            of the team or BU. This helps distinguish "no data" from "poor performance".
-          </p>
-        </div>
-      </RuleCard>
+      </div>
     </div>
   );
 }
