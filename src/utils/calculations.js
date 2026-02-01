@@ -347,9 +347,9 @@ export function getWeightedBuStatus(squads, practices, statusRules, buTrend = 's
   else if (greenPercent >= (buThresholds?.amber ?? 40)) status = 'amber';
   else status = 'red';
 
-  // Apply BU-level trend rule if enabled
-  if (statusRules?.trend?.enabled && buTrend) {
-    const trendMode = statusRules.trend.mode || 'penalty';
+  // Apply BU-level trend rule if enabled (uses separate buTrend rule, not team trend rule)
+  if (statusRules?.buTrend?.enabled && buTrend) {
+    const trendMode = statusRules.buTrend.mode || 'penalty';
 
     if (buTrend === 'declining') {
       if (trendMode === 'strict') {
