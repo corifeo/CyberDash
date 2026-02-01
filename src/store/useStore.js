@@ -80,25 +80,12 @@ const DEFAULT_STATUS_RULES = {
     description: 'Penalize BUs with declining overall trend by downgrading their status',
   },
 
-  // Grey status triggers - conditions that result in grey (untracked) BU status
+  // Grey status triggers - conditions that result in grey (insufficient data) BU status
   grey: {
     enabled: false,
-    trigger: 'scopeThreshold', // 'scopeThreshold' | 'dataMaturity' | 'allUntracked'
-    scopeThreshold: 50, // % of teams untracked to trigger grey
-    minPeriods: 2, // Minimum periods of data before showing RAG status (for dataMaturity trigger)
-    description: 'Show grey BU status for untracked BUs or those without enough data',
-  },
-
-  // Show reason badges on BU cards (explains downgrades)
-  showReasonBadges: {
-    enabled: false,
-    description: 'Display badges showing why a BU was downgraded',
-  },
-
-  // Show reason badges on Team cards (explains downgrades)
-  showTeamReasonBadges: {
-    enabled: false,
-    description: 'Display badges showing why a team was downgraded',
+    trigger: 'scopeThreshold', // 'scopeThreshold' | 'allUntracked'
+    scopeThreshold: 50, // % of teams out of scope to trigger grey
+    description: 'Show grey BU status when data is insufficient or most teams are out of scope',
   },
 };
 
