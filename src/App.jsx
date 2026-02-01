@@ -1460,12 +1460,25 @@ export default function App() {
                         })}
                       </div>
 
-                      {/* Big Stats */}
+                      {/* Big Stats + Reason Badges */}
                       <div className="flex items-end justify-between mb-3">
                         <div>
                           <div className="text-4xl font-black text-white leading-none">{meetsTarget}</div>
                           <div className="text-white/50 text-xs mt-1">of {total} at target</div>
                         </div>
+                        {/* Reason Badges - aligned right */}
+                        {showTeamReasonBadges && (
+                          <div className="flex flex-col items-end gap-1">
+                            {statusReasons.map((reason, idx) => (
+                              <span
+                                key={idx}
+                                className="px-2 py-0.5 text-xs rounded bg-black/20 text-white/90 border border-white/20"
+                              >
+                                {reason}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* Footer */}
@@ -1473,20 +1486,6 @@ export default function App() {
                         <span className="text-white/70 text-sm">{trend.label}</span>
                         <span className="text-white/50 text-xs">{statusInfo.label}</span>
                       </div>
-
-                      {/* Reason Badges */}
-                      {showTeamReasonBadges && (
-                        <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-white/10">
-                          {statusReasons.map((reason, idx) => (
-                            <span
-                              key={idx}
-                              className="px-2 py-0.5 text-xs rounded bg-black/20 text-white/90 border border-white/20"
-                            >
-                              {reason}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </Tooltip>
                 );
