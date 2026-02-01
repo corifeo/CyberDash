@@ -31,6 +31,7 @@ import {
   getPracticeAdoption,
   calculateAutoRagStatus,
   getEffectiveSquadStatus,
+  getEffectiveSquadStatusWithReasons,
   getWeightedBuStatus,
   getNextMonthSuggestion,
 } from './utils/calculations';
@@ -1112,7 +1113,7 @@ export default function App() {
                 // Calculate trend for rule-based status calculation
                 const maxLevel = getMaxMaturityLevel(store.maturityScale);
                 const teamTrend = calculateAutoTrend(currentSquad, previousMonthData, currentBU.id, store.practices, maxLevel);
-                const autoRag = calculateAutoRagStatus(currentSquad, store.practices, store.statusRules, teamTrend);
+                const { status: autoRag, reasons: autoReasons } = calculateAutoRagStatus(currentSquad, store.practices, store.statusRules, teamTrend);
                 const isAutoStatus = currentSquad.autoStatus !== false; // Default to auto
                 const displayStatus = currentSquad.tracked === false ? 'none' : (isAutoStatus ? autoRag : (currentSquad.status || autoRag));
                 const sc = getStatusInfo(store.ragColors, displayStatus);
@@ -1121,14 +1122,26 @@ export default function App() {
                 if (store.statusRules?.trend?.enabled) activeRules.push('Trend');
                 if (store.statusRules?.practiceImportance?.enabled) activeRules.push('Importance');
                 const ruleLabel = activeRules.length > 0 ? ` [${activeRules.join(', ')}]` : '';
+                // Show reason badges if enabled and there are reasons (use team-specific setting)
+                const showReasonBadges = store.statusRules?.showTeamReasonBadges?.enabled && autoReasons.length > 0 && isAutoStatus;
                 return (
-                  <div
-                    className="px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2"
-                    style={{ backgroundColor: sc.hex }}
-                    title={isAutoStatus ? `Auto: ${adoptedInfo.meetsTarget}/${adoptedInfo.total} at target${ruleLabel}` : 'Manual override'}
-                  >
-                    {sc.label}
-                    {isAutoStatus && <span className="text-xs opacity-70">(auto)</span>}
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="px-4 py-2 rounded-lg text-sm font-medium text-white flex items-center gap-2"
+                      style={{ backgroundColor: sc.hex }}
+                      title={isAutoStatus ? `Auto: ${adoptedInfo.meetsTarget}/${adoptedInfo.total} at target${ruleLabel}` : 'Manual override'}
+                    >
+                      {sc.label}
+                      {isAutoStatus && <span className="text-xs opacity-70">(auto)</span>}
+                    </div>
+                    {showReasonBadges && autoReasons.map((reason, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-1 text-xs rounded bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                      >
+                        {reason}
+                      </span>
+                    ))}
                   </div>
                 );
               })()}
@@ -1381,12 +1394,13 @@ export default function App() {
                 // Calculate auto-trend first (needed for status calculation if using trend rules)
                 const maxLevel = getMaxMaturityLevel(store.maturityScale);
                 const autoTrend = calculateAutoTrend(squad, previousMonthData, currentBU.id, store.practices, maxLevel);
-                // Use effective status (considering auto-status and trend for rule-based calculation)
-                const displayStatus = getEffectiveSquadStatus(squad, store.practices, store.statusRules, autoTrend);
+                // Use effective status with reasons (considering auto-status and trend for rule-based calculation)
+                const { status: displayStatus, reasons: statusReasons } = getEffectiveSquadStatusWithReasons(squad, store.practices, store.statusRules, autoTrend);
                 const statusInfo = getStatusInfo(store.ragColors, displayStatus);
                 const { adopted, total, meetsTarget } = getAdoptedCount(squad.practices || {}, store.practices);
                 const trend = trendConfig[autoTrend] || trendConfig.stable;
                 const teamType = store.teamTypes.find(t => t.id === (squad.teamType || 'squad'));
+                const showTeamReasonBadges = store.statusRules?.showTeamReasonBadges?.enabled && statusReasons.length > 0;
                 return (
                   <Tooltip key={squad.id} squad={squad} practices={store.practices} ragColors={store.ragColors}>
                     <div
@@ -1459,6 +1473,20 @@ export default function App() {
                         <span className="text-white/70 text-sm">{trend.label}</span>
                         <span className="text-white/50 text-xs">{statusInfo.label}</span>
                       </div>
+
+                      {/* Reason Badges */}
+                      {showTeamReasonBadges && (
+                        <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t border-white/10">
+                          {statusReasons.map((reason, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 text-xs rounded bg-black/20 text-white/90 border border-white/20"
+                            >
+                              {reason}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </Tooltip>
                 );
