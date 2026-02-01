@@ -1106,6 +1106,7 @@ export default function App() {
                   <EditableText
                     value={currentSquad.name}
                     onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'name', v)}
+                    darkMode={store.darkMode}
                   />
                 )}
               </h2>
@@ -1276,6 +1277,7 @@ export default function App() {
                           value={value}
                           onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, `practices.${key}`, v)}
                           label={def.name}
+                          darkMode={store.darkMode}
                         />
                       ) : (
                         <div className="flex items-center justify-between w-full">
@@ -1292,6 +1294,7 @@ export default function App() {
                               onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, `practices.${key}`, v)}
                               label=""
                               max={store.maturityScale.length - 1}
+                              darkMode={store.darkMode}
                             />
                           </div>
                         </div>
@@ -1316,6 +1319,7 @@ export default function App() {
                       onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'monthlyUpdate.summary', v)}
                       placeholder="What was accomplished this month..."
                       className="text-sm"
+                      darkMode={store.darkMode}
                     />
                   )}
                 </div>
@@ -1329,6 +1333,7 @@ export default function App() {
                       onChange={(v) => store.updateSquad(currentBU.id, currentSquad.id, 'monthlyUpdate.nextPeriod', v)}
                       placeholder="Plans for next month..."
                       className="text-sm"
+                      darkMode={store.darkMode}
                     />
                   )}
                 </div>
@@ -1374,6 +1379,7 @@ export default function App() {
                   <EditableText
                     value={currentBU.name}
                     onChange={(v) => store.updateBusinessUnit(currentBU.id, v)}
+                    darkMode={store.darkMode}
                   />
                 )}
               </h2>
